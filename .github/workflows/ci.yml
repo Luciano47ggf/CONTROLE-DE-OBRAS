@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  database:
+    name: Banco (pgTAP + tipos em dia)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: pgTAP no container do Postgres
+        run: |
+          docker exec ${{ job.services.postgres.id }} bash -c \
+            "apt-get update -qq && apt-get install -y -qq postgresql-16-pgtap >/dev/null"
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client libtap-parser-sourcehandler-pgtap-perl >/dev/null
+      - name: Migrations + testes
+        run: bash supabase/tests/run-local.sh
+      - name: Tipos gerados conferem com as migrations
+        run: |
+          DATABASE_URL="postgresql://postgres:postgres@localhost:5432/acervo_test" npm run db:types:local
+          git diff --exit-code src/lib/database.types.ts || {
+            echo "::error::database.types.ts desatualizado. Rode npm run db:types:local e commite."; exit 1; }
+
+  app:
+    name: App (tipos + build)
+    runs-on: ubuntu-24.04
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://exemplo.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
