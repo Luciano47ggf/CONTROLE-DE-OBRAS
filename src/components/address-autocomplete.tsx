@@ -89,13 +89,19 @@ export function AddressAutocomplete({ onSelect }: { onSelect: (r: AddressResult)
     setError(undefined);
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetch(`https://photon.komoot.io/api/?limit=8&q=${encodeURIComponent(q)}`, { signal: controller.signal })
+      // lat/lon/zoom: viés para o Brasil (não é filtro rígido) — sem isso, nomes comuns
+      // (ex. "Padaria Nossa Senhora") trazem até Portugal entre os primeiros resultados e
+      // empurram os brasileiros para fora do limite antes do filtro por país, abaixo.
+      fetch(
+        `https://photon.komoot.io/api/?limit=15&lat=-15.78&lon=-47.93&zoom=5&location_bias_scale=0.9&q=${encodeURIComponent(q)}`,
+        { signal: controller.signal },
+      )
         .then((res) => {
           if (!res.ok) throw new Error("busca falhou");
           return res.json() as Promise<{ features: PhotonFeature[] }>;
         })
         .then((data) => {
-          const br = (data.features ?? []).filter((f) => f.properties.countrycode === "BR");
+          const br = (data.features ?? []).filter((f) => f.properties.countrycode === "BR").slice(0, 8);
           setResults(br);
           setOpen(true);
         })
