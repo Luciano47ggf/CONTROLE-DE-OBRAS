@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
-import { PageHeader, Photo, StatusBadge, SwapIndicator } from "@/components/ui";
+import { PageHeader, StatusBadge, SwapIndicator } from "@/components/ui";
+import { ArtworkGallery, type GalleryPhoto } from "@/components/photos/gallery";
 import { InstallForm } from "@/components/movements/install-form";
 import { ReturnForm } from "@/components/movements/return-form";
 import { StockStatusForm, ReservationActions } from "@/components/movements/status-actions";
@@ -12,15 +13,22 @@ import type { ActiveInstallationRow, ArtworkRow, HistoryRow, MovementRow, SpaceR
 export default async function ArtworkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [{ data }, { data: hist }, { data: moves }, { data: active }, settings, me] = await Promise.all([
+  const [{ data }, { data: hist }, { data: moves }, { data: active }, settings, me, { data: photoRows }] = await Promise.all([
     supabase.from("v_artworks").select("*").eq("id", id).maybeSingle(),
     supabase.from("v_installation_history").select("*").eq("artwork_id", id).order("installed_at", { ascending: false }),
     supabase.from("v_movements").select("*").eq("artwork_id", id).order("occurred_at", { ascending: false }).limit(100),
     supabase.from("v_active_installations").select("*").eq("artwork_id", id).maybeSingle(),
     getSettings(),
     getCurrentUser(),
+    supabase
+      .from("artwork_photos")
+      .select("id, display_path, thumb_path, original_path, caption, is_cover, width, height")
+      .eq("artwork_id", id)
+      .order("position")
+      .order("created_at"),
   ]);
   if (!data) notFound();
+  const photos = (photoRows ?? []) as GalleryPhoto[];
   const canWrite = !!me?.canWrite;
   const a = data as ArtworkRow;
   const history = (hist ?? []) as HistoryRow[];
@@ -55,11 +63,7 @@ export default async function ArtworkPage({ params }: { params: Promise<{ id: st
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div>
-          <div className="bg-wall p-6 sm:p-10">
-            <div className="border-[6px] border-brass bg-paper shadow-[0_8px_24px_-12px_rgba(29,43,42,0.45)]">
-              <Photo path={a.photo_path} alt={a.title} className="aspect-[4/3] w-full" />
-            </div>
-          </div>
+          <ArtworkGallery artworkId={a.id} title={a.title} photos={photos} canWrite={canWrite} />
           {/* etiqueta de museu */}
           <div className="mt-4 border-l-2 border-brass pl-4">
             <p className="font-serif text-lg">{a.title}{a.year ? `, ${a.year}` : ""}</p>

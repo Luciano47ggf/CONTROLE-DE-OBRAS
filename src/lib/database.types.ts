@@ -169,6 +169,66 @@ export type Database = {
           },
         ];
       };
+      artwork_photos: {
+        Row: {
+          artwork_id: string;
+          caption: string | null;
+          created_at: string;
+          created_by: string | null;
+          display_path: string;
+          height: number | null;
+          id: string;
+          is_cover: boolean;
+          original_path: string;
+          position: number;
+          thumb_path: string;
+          width: number | null;
+        };
+        Insert: {
+          artwork_id: string;
+          caption?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          display_path: string;
+          height?: number | null;
+          id?: string;
+          is_cover?: boolean;
+          original_path: string;
+          position?: number;
+          thumb_path: string;
+          width?: number | null;
+        };
+        Update: {
+          artwork_id?: string;
+          caption?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          display_path?: string;
+          height?: number | null;
+          id?: string;
+          is_cover?: boolean;
+          original_path?: string;
+          position?: number;
+          thumb_path?: string;
+          width?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "artwork_photos_artwork_id_fkey";
+            columns: ["artwork_id"];
+            isOneToOne: false;
+            referencedRelation: "artworks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "artwork_photos_artwork_id_fkey";
+            columns: ["artwork_id"];
+            isOneToOne: false;
+            referencedRelation: "v_artworks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       artworks: {
         Row: {
           artist_id: string;
@@ -180,7 +240,6 @@ export type Database = {
           height_cm: number;
           id: string;
           notes: string | null;
-          photo_path: string | null;
           reserved_space_id: string | null;
           status: Database["public"]["Enums"]["artwork_status"];
           status_changed_at: string;
@@ -202,7 +261,6 @@ export type Database = {
           height_cm: number;
           id?: string;
           notes?: string | null;
-          photo_path?: string | null;
           reserved_space_id?: string | null;
           status?: Database["public"]["Enums"]["artwork_status"];
           status_changed_at?: string;
@@ -224,7 +282,6 @@ export type Database = {
           height_cm?: number;
           id?: string;
           notes?: string | null;
-          photo_path?: string | null;
           reserved_space_id?: string | null;
           status?: Database["public"]["Enums"]["artwork_status"];
           status_changed_at?: string;
@@ -576,6 +633,7 @@ export type Database = {
           artwork_code: string | null;
           artwork_id: string | null;
           artwork_photo: string | null;
+          artwork_thumb: string | null;
           artwork_title: string | null;
           client_id: string | null;
           client_name: string | null;
@@ -644,6 +702,39 @@ export type Database = {
           },
         ];
       };
+      v_artwork_covers: {
+        Row: {
+          artwork_id: string | null;
+          display_path: string | null;
+          thumb_path: string | null;
+        };
+        Insert: {
+          artwork_id?: string | null;
+          display_path?: string | null;
+          thumb_path?: string | null;
+        };
+        Update: {
+          artwork_id?: string | null;
+          display_path?: string | null;
+          thumb_path?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "artwork_photos_artwork_id_fkey";
+            columns: ["artwork_id"];
+            isOneToOne: false;
+            referencedRelation: "artworks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "artwork_photos_artwork_id_fkey";
+            columns: ["artwork_id"];
+            isOneToOne: false;
+            referencedRelation: "v_artworks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       v_artworks: {
         Row: {
           artist_id: string | null;
@@ -665,7 +756,9 @@ export type Database = {
           height_cm: number | null;
           id: string | null;
           notes: string | null;
+          photo_count: number | null;
           photo_path: string | null;
+          photo_thumb_path: string | null;
           reserved_client_id: string | null;
           reserved_client_name: string | null;
           reserved_space_id: string | null;
@@ -767,6 +860,7 @@ export type Database = {
           artwork_code: string | null;
           artwork_id: string | null;
           artwork_photo: string | null;
+          artwork_thumb: string | null;
           artwork_title: string | null;
           client_id: string | null;
           client_name: string | null;
@@ -925,6 +1019,7 @@ export type Database = {
           artwork_height_cm: number | null;
           artwork_id: string | null;
           artwork_photo: string | null;
+          artwork_thumb: string | null;
           artwork_title: string | null;
           artwork_width_cm: number | null;
           client_id: string | null;
@@ -1066,7 +1161,6 @@ export type Database = {
           height_cm: number;
           id: string;
           notes: string | null;
-          photo_path: string | null;
           reserved_space_id: string | null;
           status: Database["public"]["Enums"]["artwork_status"];
           status_changed_at: string;
@@ -1135,6 +1229,7 @@ export type Database = {
           idle_days: number;
           last_at_client: string;
           photo_path: string;
+          photo_thumb_path: string;
           score_category: number;
           score_history: number;
           score_idle: number;
@@ -1144,6 +1239,10 @@ export type Database = {
           title: string;
           width_cm: number;
         }[];
+      };
+      reorder_artwork_photos: {
+        Args: { p_artwork_id: string; p_ids: string[] };
+        Returns: undefined;
       };
       reserve_artwork: {
         Args: { p_artwork_id: string; p_notes?: string; p_space_id: string };
@@ -1166,6 +1265,7 @@ export type Database = {
         };
         Returns: undefined;
       };
+      set_cover_photo: { Args: { p_photo_id: string }; Returns: undefined };
     };
     Enums: {
       artwork_status:

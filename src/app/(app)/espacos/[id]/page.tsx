@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/queries";
 import { PageHeader, Photo, SwapIndicator, EmptyState } from "@/components/ui";
 import { WallPreview } from "@/components/wall-preview";
 import { ScoreBreakdown } from "@/components/score-breakdown";
+import { SpacePhotoUploader } from "@/components/photos/space-photo";
 import { InstallForm } from "@/components/movements/install-form";
 import { ReturnForm, PostponeForm } from "@/components/movements/return-form";
 import { date, dims, plural, swapText } from "@/lib/format";
@@ -108,6 +109,20 @@ export default async function SpacePage({
         </div>
       </section>
 
+      {(space.photo_path || canWrite) && (
+        <section className="mt-6 grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          {space.photo_path ? (
+            <figure>
+              <Photo path={space.photo_path} alt={`Foto do espaço ${space.name}`} className="max-h-80 w-full rounded-md" />
+              <figcaption className="mt-1 text-xs text-muted">Foto do local, para conferir luz, acesso e entorno.</figcaption>
+            </figure>
+          ) : (
+            <p className="self-center text-sm text-muted">Sem foto do local. Uma foto ajuda a equipe de montagem a conferir luz e acesso.</p>
+          )}
+          {canWrite && <SpacePhotoUploader clientId={space.client_id} spaceId={space.id} hasPhoto={!!space.photo_path} />}
+        </section>
+      )}
+
       {/* recomendações */}
       <section className="mt-12">
         <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
@@ -129,7 +144,7 @@ export default async function SpacePage({
             {recommendations.map((r, i) => (
               <li key={r.artwork_id} className="panel">
                 <div className="grid gap-5 p-5 md:grid-cols-[120px_minmax(0,1fr)_140px_110px] md:items-center">
-                  <Photo path={r.photo_path} alt={r.title} className="aspect-square w-full max-w-[120px] rounded-sm" />
+                  <Photo path={r.photo_thumb_path} alt={r.title} className="aspect-square w-full max-w-[120px] rounded-sm" />
                   <div className="min-w-0">
                     <Link href={`/obras/${r.artwork_id}`} className="title-serif text-xl hover:underline">{r.title}</Link>
                     <p className="text-sm text-muted">

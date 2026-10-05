@@ -5,7 +5,8 @@ import { createClient, getCurrentUser } from "@/lib/supabase/server";
 async function signOut() {
   "use server";
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // escopo local: sair neste aparelho não derruba a sessão em outros
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }
 
@@ -14,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect("/login");
   if (!user.active) {
     const supabase = await createClient();
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     redirect("/login?inativo=1");
   }
 

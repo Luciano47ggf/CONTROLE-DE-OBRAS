@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui";
 import { NameForm, PasswordForm } from "./forms";
-import { ROLE_LABEL } from "../usuarios/forms";
+import { ROLE_LABEL } from "@/lib/format";
 
 export default async function AccountPage() {
   const me = await getCurrentUser();

@@ -5,12 +5,8 @@ import { createUser, resetPassword, setUserActive, updateUser } from "./actions"
 import { Field } from "@/components/ui";
 import { FormAlert, SubmitButton } from "@/components/submit-button";
 import type { UserRole } from "@/lib/types";
+import { ROLE_LABEL } from "@/lib/format";
 
-export const ROLE_LABEL: Record<UserRole, string> = {
-  admin: "Administrador",
-  operador: "Operador",
-  leitura: "Consulta",
-};
 const ROLE_HINT: Record<UserRole, string> = {
   admin: "Tudo, inclusive usuários e configurações",
   operador: "Cadastros e movimentações de obras",

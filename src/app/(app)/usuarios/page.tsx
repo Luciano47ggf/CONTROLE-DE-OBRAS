@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/ui";
-import { CreateUserForm, ROLE_LABEL, UserRowActions } from "./forms";
-import { date, plural } from "@/lib/format";
+import { CreateUserForm, UserRowActions } from "./forms";
+import { ROLE_LABEL, date, plural } from "@/lib/format";
 import type { UserRow } from "@/lib/types";
 
 export default async function UsersPage() {

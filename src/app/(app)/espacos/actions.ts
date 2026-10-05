@@ -4,7 +4,6 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { uploadPhoto, removePhoto } from "@/lib/storage";
 import { dbError, formObject, metersToCm, optInt, optText, requiredText, todayOr, zodErrors } from "@/lib/form";
 import type { ActionState } from "@/lib/types";
 
@@ -26,26 +25,11 @@ export async function saveSpace(_prev: ActionState, fd: FormData): Promise<Actio
   const id = fd.get("id") as string | null;
   const supabase = await createClient();
 
-  let photo_path: string | null | undefined;
-  try {
-    photo_path = await uploadPhoto(supabase, fd.get("photo"), `espacos/${rest.client_id}`);
-  } catch (e) {
-    return { error: (e as Error).message };
-  }
-
-  const values = {
-    ...rest,
-    width_cm: width_m!,
-    height_cm: height_m!,
-    active: fd.get("active") !== "off",
-    ...(photo_path ? { photo_path } : {}),
-  };
+  const values = { ...rest, width_cm: width_m!, height_cm: height_m!, active: fd.get("active") !== "off" };
 
   if (id) {
-    const { data: old } = await supabase.from("client_spaces").select("photo_path").eq("id", id).single();
     const { error } = await supabase.from("client_spaces").update(values).eq("id", id);
     if (error) return dbError(error);
-    if (photo_path && old?.photo_path) await removePhoto(supabase, old.photo_path);
   } else {
     const { error } = await supabase.from("client_spaces").insert(values);
     if (error) return dbError(error);

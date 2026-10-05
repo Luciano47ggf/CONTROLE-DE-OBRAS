@@ -130,7 +130,13 @@ apoiada no índice `(status, width_cm, height_cm)`; escala para milhares de obra
 ```
 supabase/
   migrations/  0001 esquema · 0002 regras · 0003 views+RLS · 0004 storage
+               0005 usuários · 0006 fotos
+  tests/       pgTAP (database/*.test.sql) + run-local.sh
   seed.sql     dados de exemplo
+e2e/
+  stack/       pilha local: up.sh, down.sh, gateway, storage simulado, JWT
+  tests/       cenários Playwright
+.github/workflows/ci.yml   banco · app · ponta a ponta
 src/
   proxy.ts                 sessão + proteção de rotas (Next 16)
   app/
@@ -145,9 +151,11 @@ src/
     wall-preview.tsx       parede em escala (SVG)
     space-card.tsx, score-breakdown.tsx, sidebar.tsx
     movements/             instalar, retirar, adiar, status
+    photos/                envio direto, galeria, foto do espaço
   lib/
     supabase/              clientes server/proxy
-    types.ts format.ts form.ts queries.ts storage.ts
+    database.types.ts      gerado pela CLI do Supabase
+    types.ts format.ts form.ts queries.ts images.ts photo-rules.ts
 ```
 
 ## 7. Usuários (fase 2, migration 0005)
@@ -163,7 +171,7 @@ de papel e situação passam pela sessão do admin, ou seja, pelas mesmas regras
 
 ## 8. Qualidade
 
-- `supabase/tests/database/*.test.sql`: 95 asserções pgTAP. Cada arquivo roda numa
+- `supabase/tests/database/*.test.sql`: 109 asserções pgTAP. Cada arquivo roda numa
   transação desfeita ao final, troca de papel (`authenticated`, `anon`) e simula o JWT,
   exercitando RLS e privilégios reais.
 - Prova reversa feita durante o desenvolvimento: removendo a margem de `fits_space` ou
@@ -173,9 +181,46 @@ de papel e situação passam pela sessão do admin, ou seja, pelas mesmas regras
   consegue inferir (colunas não nulas de views).
 - CI: testes do banco, tipos em dia, typecheck e build.
 
-## 9. Próximos passos sugeridos
+## 9. Fotos (fase 3, migration 0006)
 
-- Testes de interface ponta a ponta (Playwright) contra um Supabase local.
-- Fotos múltiplas por obra e miniaturas (transformações de imagem do Supabase).
+`artwork_photos` substitui `artworks.photo_path` (os dados antigos migram como capa).
+Cada foto guarda três arquivos: original, exibição e miniatura. Gatilhos garantem que
+sempre exista exatamente uma capa quando a obra tem fotos, inclusive ao excluir a capa.
+`set_cover_photo` e `reorder_artwork_photos` rodam como o próprio usuário (RLS vale).
+As views continuam expondo `photo_path` (exibição da capa) e ganharam `photo_thumb_path`.
+
+Fluxo de envio:
+
+```
+navegador ──(original)──► Storage  obras/{obra}/{uuid}/original.jpg
+navegador ──(caminhos)──► Server Action registerArtworkPhotos
+                              ├─ baixa o original
+                              ├─ sharp: rotate() + resize + WebP (sem EXIF)
+                              ├─ grava exibicao.webp e miniatura.webp
+                              └─ insere artwork_photos (RLS: can_write)
+```
+
+O servidor só aceita caminhos no padrão da própria obra; se algo falha, os arquivos
+daquela foto são apagados. Na exclusão, o registro sai antes dos arquivos (um arquivo
+órfão não quebra nada; o contrário quebraria a galeria).
+
+## 10. Testes ponta a ponta
+
+Pilha local sem Docker (`e2e/stack`): Postgres + GoTrue + PostgREST oficiais + gateway
+em Node; Storage simulado em disco. As migrations rodam sobre o schema `auth` real do
+GoTrue, então os gatilhos de perfil e o `auth.uid()` são os de produção. Cada teste usa
+dados com sufixo próprio, e os testes rodam em série num banco compartilhado.
+
+Intermitências investigadas, não mascaradas: uma vinha do teste recarregar a página
+antes de a legenda terminar de salvar (o banco provou que nada se perdia; a interface
+ganhou um aviso "Legenda salva" e o teste passou a esperar por ele); outra era o tempo
+total da jornada completa, agora com limite próprio.
+
+## 11. Próximos passos sugeridos
+
+- Rodar a suíte ponta a ponta também contra `supabase start` (Storage real, com RLS).
+- Agenda de trocas por rota/dia para a equipe de montagem.
+- Relatórios: obras paradas, giro por cliente, valor instalado por cliente.
+- Evoluir a nota: cor/estilo, preferências do cliente, rotação de artistas.
 - Agenda de trocas por rota/dia para a equipe de montagem.
 - Evoluir a nota: cor/estilo, preferências do cliente, rotação de artistas.

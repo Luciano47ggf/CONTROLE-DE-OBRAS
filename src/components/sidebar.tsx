@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ROLE_LABEL } from "@/lib/format";
 import { useState } from "react";
 import {
   LayoutGrid, Frame, Users, Palette, CalendarClock, Settings, LogOut, Menu, X, ShieldCheck, UserRound,
@@ -16,7 +17,6 @@ const NAV = [
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 const ADMIN_NAV = [{ href: "/usuarios", label: "Usuários", icon: ShieldCheck }];
-const ROLE_NAME: Record<string, string> = { admin: "Administrador", operador: "Operador", leitura: "Consulta" };
 
 export function Sidebar({ userName, role, isAdmin, signOut }: { userName: string; role: string; isAdmin: boolean; signOut: () => Promise<void> }) {
   const pathname = usePathname();
@@ -63,7 +63,7 @@ export function Sidebar({ userName, role, isAdmin, signOut }: { userName: string
             <UserRound size={16} className="shrink-0 text-paper/50 group-hover:text-paper" />
             <span className="min-w-0">
               <span className="block truncate text-sm text-paper group-hover:underline">{userName}</span>
-              <span className="block text-xs text-paper/50">{ROLE_NAME[role] ?? role}</span>
+              <span className="block text-xs text-paper/50">{ROLE_LABEL[role as keyof typeof ROLE_LABEL] ?? role}</span>
             </span>
           </Link>
           <form action={signOut} className="mt-3">

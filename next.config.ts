@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    serverActions: { bodySizeLimit: "10mb" }, // upload de fotos
+    serverActions: { bodySizeLimit: "2mb" }, // fotos vão direto ao Storage pelo navegador
   },
 };
 

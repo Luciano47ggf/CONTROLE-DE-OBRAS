@@ -132,7 +132,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
             <tbody>
               {rows.map((a) => (
                 <tr key={a.id}>
-                  <td><Photo path={a.photo_path} alt={a.title} className="h-12 w-12 rounded-sm" /></td>
+                  <td><Photo path={a.photo_thumb_path} alt={a.title} className="h-12 w-12 rounded-sm" /></td>
                   <td className="min-w-48">
                     <Link href={`/obras/${a.id}`} className="font-serif text-base hover:underline">{a.title}</Link>
                     <span className="block text-xs text-muted">{a.code}, {a.artist_name}{a.category_name ? `, ${a.category_name.toLowerCase()}` : ""}</span>

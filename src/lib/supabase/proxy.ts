@@ -23,8 +23,18 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
   const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+
+  // Conta bloqueada pelo administrador: limpa a sessão e explica o motivo
+  if (error?.code === "user_banned" && !isPublic) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "?inativo=1";
+    const redirect = NextResponse.redirect(url);
+    request.cookies.getAll().forEach(({ name }) => name.startsWith("sb-") && redirect.cookies.delete(name));
+    return redirect;
+  }
 
   if (!data.user && !isPublic) {
     const url = request.nextUrl.clone();

@@ -53,3 +53,47 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+
+  e2e:
+    name: Ponta a ponta (Playwright)
+    needs: [database, app]
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Cliente do Postgres
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null
+      - name: Cache dos binários (GoTrue, PostgREST)
+        uses: actions/cache@v4
+        with:
+          path: e2e/.bin
+          key: e2e-bin-${{ hashFiles('e2e/stack/fetch-bins.sh') }}
+      - name: Navegador
+        run: npx playwright install --with-deps chromium
+      - name: Pilha local + build + testes
+        run: npm run e2e
+      - name: Relatório
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+            e2e/.run/*.log
+          retention-days: 7

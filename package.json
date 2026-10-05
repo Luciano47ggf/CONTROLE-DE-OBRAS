@@ -10,7 +10,11 @@
     "db:test": "supabase test db",
     "db:test:local": "bash supabase/tests/run-local.sh",
     "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/lib/database.types.ts && oxfmt src/lib/database.types.ts",
-    "db:types:local": "supabase gen types typescript --db-url \"$DATABASE_URL\" --schema public > src/lib/database.types.ts && oxfmt src/lib/database.types.ts"
+    "db:types:local": "supabase gen types typescript --db-url \"$DATABASE_URL\" --schema public > src/lib/database.types.ts && oxfmt src/lib/database.types.ts",
+    "e2e:stack": "bash e2e/stack/up.sh",
+    "e2e:stack:down": "bash e2e/stack/down.sh",
+    "e2e:build": "node e2e/with-env.mjs npx next build",
+    "e2e": "npm run e2e:stack && npm run e2e:build && playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -20,9 +24,11 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22",
     "@types/react": "^19",

@@ -75,9 +75,6 @@ export function ArtworkForm({
             </select>
           </Field>
         )}
-        <Field label="Foto" name="photo" hint={artwork?.photo_path ? "Enviar uma nova substitui a atual" : "JPG, PNG ou WebP até 10 MB"}>
-          <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="input" />
-        </Field>
         <Field label="Descrição" name="description" className="sm:col-span-2">
           <textarea id="description" name="description" rows={3} defaultValue={artwork?.description ?? ""} className="input" />
         </Field>
@@ -86,7 +83,10 @@ export function ArtworkForm({
         </Field>
       </fieldset>
 
-      <SubmitButton>{artwork ? "Salvar alterações" : "Cadastrar obra"}</SubmitButton>
+      <div className="flex flex-wrap items-center gap-3">
+        <SubmitButton>{artwork ? "Salvar alterações" : "Cadastrar obra"}</SubmitButton>
+        {!artwork && <span className="text-sm text-muted">As fotos são adicionadas na página da obra, logo depois de cadastrar.</span>}
+      </div>
     </form>
   );
 }

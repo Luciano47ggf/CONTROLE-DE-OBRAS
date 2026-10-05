@@ -1,4 +1,4 @@
-import type { ArtworkStatus, SwapStatus } from "./types";
+import type { ArtworkStatus, SwapStatus, UserRole } from "./types";
 
 export const STATUS_LABEL: Record<ArtworkStatus, string> = {
   disponivel: "Disponível",
@@ -63,3 +63,9 @@ export function photoUrl(path: string | null | undefined): string | null {
 export function todayISO(): string {
   return new Intl.DateTimeFormat("en-CA").format(new Date());
 }
+
+export const ROLE_LABEL: Record<UserRole, string> = {
+  admin: "Administrador",
+  operador: "Operador",
+  leitura: "Consulta",
+};

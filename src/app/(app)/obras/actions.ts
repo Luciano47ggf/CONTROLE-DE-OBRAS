@@ -4,7 +4,6 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { uploadPhoto, removePhoto } from "@/lib/storage";
 import { dbError, formObject, metersToCm, optDecimal, optInt, optText, requiredText, zodErrors } from "@/lib/form";
 import type { ActionState, ArtworkStatus } from "@/lib/types";
 
@@ -31,39 +30,18 @@ export async function saveArtwork(_prev: ActionState, fd: FormData): Promise<Act
   const id = fd.get("id") as string | null;
   const supabase = await createClient();
 
-  let photo_path: string | null;
-  try {
-    photo_path = await uploadPhoto(supabase, fd.get("photo"), "obras");
-  } catch (e) {
-    return { error: (e as Error).message };
-  }
-
-  const values = {
-    ...rest,
-    width_cm: width_m!,
-    height_cm: height_m!,
-    depth_cm: depth_m,
-    ...(photo_path ? { photo_path } : {}),
-  };
+  const values = { ...rest, width_cm: width_m!, height_cm: height_m!, depth_cm: depth_m };
 
   let artworkId = id;
   if (id) {
-    const { data: old } = await supabase.from("artworks").select("photo_path").eq("id", id).single();
     const { error } = await supabase.from("artworks").update(values).eq("id", id);
-    if (error) {
-      if (photo_path) await removePhoto(supabase, photo_path);
-      return dbError(error);
-    }
-    if (photo_path && old?.photo_path) await removePhoto(supabase, old.photo_path);
+    if (error) return dbError(error);
   } else {
     const initial = fd.get("status");
     const status: ArtworkStatus =
       initial === "em_manutencao" || initial === "em_restauracao" || initial === "indisponivel" ? initial : "disponivel";
     const { data, error } = await supabase.from("artworks").insert({ ...values, status }).select("id").single();
-    if (error) {
-      if (photo_path) await removePhoto(supabase, photo_path);
-      return dbError(error);
-    }
+    if (error) return dbError(error);
     artworkId = data.id;
   }
   revalidatePath("/obras");

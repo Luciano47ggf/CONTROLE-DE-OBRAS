@@ -68,9 +68,6 @@ export function SpaceForm({
           <textarea id="notes" name="notes" rows={2} defaultValue={space?.notes ?? ""} className="input" />
         </Field>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Foto do espaço" name="photo">
-            <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="input" />
-          </Field>
           {space && (
             <Field label="Situação" name="active">
               <select id="active" name="active" defaultValue={space.active ? "on" : "off"} className="input">
