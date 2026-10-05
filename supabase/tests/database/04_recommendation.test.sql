@@ -1,6 +1,6 @@
 begin;
 \ir _fixtures.psql
-select plan(15);
+select plan(26);
 
 select tests.login('operador@teste.com');
 set local role authenticated;
@@ -34,6 +34,9 @@ $$, 'contagem de compatíveis do espaço bate com a recomendação');
 select is((select array_agg(distinct score_category) from recommend_artworks(tests.space('T-Sala'))),
   array[5]::numeric[], 'espaço sem tipo dá 5 pontos de categoria a todas');
 
+-- Nenhuma obra ainda passou por nenhum cliente: ninguém fica bloqueado
+select ok(not exists (select 1 from r where blocked), 'sem histórico no cliente, nada aparece bloqueado');
+
 -- ---------------------------------------------------------- histórico no cliente
 reset role;
 -- T-2 saiu do T-Hotel há 30 dias; T-4 saiu há mais de 2 anos; T-7 passou 2 vezes, a última há 365 dias
@@ -56,6 +59,33 @@ select ok((select score_history from r where code = 'T-4') < 30, 'antiga nunca e
 -- A mesma obra continua sendo sugerida em outro cliente sem penalidade
 select is((select score_history from recommend_artworks(tests.space('T-Sala')) where code = 'T-7'), 30.0,
   'histórico é por cliente (T-7 passou duas vezes pelo hotel, é inédita na empresa)');
+
+-- ---------------------------------------------------------- regra de não repetição
+select is((select blocked from r where code = 'T-3'), false, 'obra inédita neste cliente não fica bloqueada');
+select is((select blocked from r where code = 'T-4'), true, 'obra que já passou por este cliente fica bloqueada por padrão');
+select ok((select r.id from r where code = 'T-4') is not null, 'a obra bloqueada continua aparecendo na lista, só marcada');
+
+select tests.login('leitor@teste.com');
+select throws_ok($$ select release_artwork_repeat(
+    tests.art('T-4'), (select client_id from client_spaces where id = tests.space('T-Recepção')), 'teste') $$,
+  '42501', null, 'leitor não pode liberar repetição');
+select tests.login('operador@teste.com');
+
+select lives_ok($$ select release_artwork_repeat(
+    tests.art('T-4'), (select client_id from client_spaces where id = tests.space('T-Recepção')), 'Cliente pediu para repetir') $$,
+  'libera a repetição da obra para o cliente, com motivo');
+select is((select blocked from r where code = 'T-4'), false, 'depois de liberada, a obra deixa de aparecer bloqueada');
+select is((select count(*)::int from artwork_repeat_releases where artwork_id = tests.art('T-4')), 1,
+  'a liberação fica registrada para auditoria (quem, quando, motivo)');
+
+-- ---------------------------------------------------------- recomendação por cliente
+create temp view rc as select * from recommend_artworks_for_client((select id from clients where name = 'T-Hotel'));
+
+select set_eq($$ select code from rc $$, array['T-2', 'T-3', 'T-4', 'T-7'],
+  'cruza todos os espaços ativos do cliente, uma linha por obra');
+select is((select space_name from rc where code = 'T-3'), 'T-Corredor',
+  'escolhe, para cada obra, o espaço do cliente com melhor encaixe');
+select is((select blocked from rc where code = 'T-4'), false, 'a liberação já registrada também vale na visão por cliente');
 
 select * from finish();
 rollback;

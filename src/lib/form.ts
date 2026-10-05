@@ -39,6 +39,9 @@ function parseDecimalLoose(v: string): number {
   return v.includes(",") ? parseDecimal(v) : Number(v);
 }
 
+/** Mesmo parser de número solto, exportado para uso no formulário (conversão m ↔ cm no navegador) */
+export const parseMeasure = parseDecimalLoose;
+
 /** Medida digitada em METROS → número em CENTÍMETROS */
 export const metersToCm = (required: boolean) =>
   z
@@ -58,6 +61,32 @@ export const metersToCm = (required: boolean) =>
         return z.NEVER;
       }
       return Math.round(m * 10000) / 100; // cm com 2 casas
+    });
+
+/** Medida digitada em metros ou centímetros (conforme unidade escolhida) → número em CENTÍMETROS */
+export const dimensionToCm = (required: boolean) =>
+  z
+    .object({ value: z.string().optional(), unit: z.string().optional() })
+    .transform((d, ctx) => {
+      const raw = d.value?.trim();
+      if (!raw) {
+        if (required) {
+          ctx.addIssue({ code: "custom", message: "Obrigatório." });
+          return z.NEVER;
+        }
+        return null;
+      }
+      const n = parseDecimalLoose(raw);
+      const unit = d.unit === "cm" ? "cm" : "m";
+      const cm = unit === "cm" ? n : n * 100;
+      if (!Number.isFinite(cm) || cm <= 0 || cm > 10000) {
+        ctx.addIssue({
+          code: "custom",
+          message: unit === "cm" ? "Informe em centímetros, por exemplo 250." : "Informe em metros, por exemplo 2,5.",
+        });
+        return z.NEVER;
+      }
+      return Math.round(cm * 100) / 100; // cm com 2 casas
     });
 
 export const optDecimal = z

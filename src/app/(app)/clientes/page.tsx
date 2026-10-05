@@ -1,73 +1,57 @@
 import Link from "next/link";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
-import { PageHeader, EmptyState } from "@/components/ui";
-import type { SpaceRow } from "@/lib/types";
+import { PageHeader } from "@/components/ui";
+import { ClientsBoard, type ClientSummary } from "@/components/clients/clients-board";
 
-export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ q?: string; inativos?: string }> }) {
-  const { q, inativos } = await searchParams;
+export default async function ClientsPage() {
   const supabase = await createClient();
   const canWrite = !!(await getCurrentUser())?.canWrite;
 
-  let query = supabase.from("clients").select("id, name, city, state, contact_name, active").order("name").limit(500);
-  if (!inativos) query = query.eq("active", true);
-  if (q) query = query.ilike("name", `%${q}%`);
-  const [{ data: clients }, { data: spaces }] = await Promise.all([
-    query,
-    supabase.from("v_spaces").select("client_id, artwork_id, swap_status").eq("active", true),
+  const [{ data: clients }, { data: spaces }, { data: occupants }] = await Promise.all([
+    supabase.from("clients").select("id, name, segment, active").order("name").limit(500),
+    supabase.from("client_spaces").select("client_id").eq("active", true),
+    supabase
+      .from("v_active_installations")
+      .select("client_id, days_remaining, artwork_photo")
+      .order("installed_at", { ascending: false }),
   ]);
 
-  const byClient = new Map<string, { total: number; occupied: number; overdue: number }>();
-  for (const s of (spaces ?? []) as Pick<SpaceRow, "client_id" | "artwork_id" | "swap_status">[]) {
-    const c = byClient.get(s.client_id) ?? { total: 0, occupied: 0, overdue: 0 };
-    c.total++;
-    if (s.artwork_id) c.occupied++;
-    if (s.swap_status === "vermelho") c.overdue++;
-    byClient.set(s.client_id, c);
+  const spaceCount = new Map<string, number>();
+  for (const s of spaces ?? []) spaceCount.set(s.client_id, (spaceCount.get(s.client_id) ?? 0) + 1);
+
+  type OccSummary = { count: number; nextDays: number | null; photo: string | null };
+  const occSummary = new Map<string, OccSummary>();
+  for (const o of occupants ?? []) {
+    if (!o.client_id) continue;
+    const cur = occSummary.get(o.client_id) ?? { count: 0, nextDays: null, photo: null };
+    cur.count++;
+    if (o.days_remaining !== null && (cur.nextDays === null || o.days_remaining < cur.nextDays)) cur.nextDays = o.days_remaining;
+    if (!cur.photo && o.artwork_photo) cur.photo = o.artwork_photo;
+    occSummary.set(o.client_id, cur);
   }
+
+  const summaries: ClientSummary[] = (clients ?? []).map((c) => {
+    const occ = occSummary.get(c.id) ?? { count: 0, nextDays: null, photo: null };
+    return {
+      id: c.id,
+      name: c.name,
+      segment: c.segment,
+      active: c.active,
+      spaceCount: spaceCount.get(c.id) ?? 0,
+      occupantCount: occ.count,
+      nextSwapDays: occ.nextDays,
+      previewPhoto: occ.photo,
+    };
+  });
 
   return (
     <>
       <PageHeader
-        title="Clientes e espaços"
+        title="Visão geral"
+        subtitle="Clientes, seus espaços e obras em circulação"
         actions={canWrite && <Link href="/clientes/novo" className="btn-primary">Cadastrar cliente</Link>}
       />
-      <form className="mb-5 flex flex-wrap items-center gap-3">
-        <input name="q" defaultValue={q} placeholder="Buscar por nome" className="input max-w-xs" />
-        <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" name="inativos" value="1" defaultChecked={!!inativos} /> Incluir inativos
-        </label>
-        <button className="btn-secondary">Filtrar</button>
-      </form>
-
-      {!clients?.length ? (
-        <EmptyState title={q ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
-          action={<Link href="/clientes/novo" className="btn-primary">Cadastrar cliente</Link>}>
-          {q ? "Confira a grafia ou limpe a busca." : "Cadastre um cliente e depois os espaços onde as obras serão instaladas."}
-        </EmptyState>
-      ) : (
-        <div className="panel overflow-x-auto">
-          <table className="table">
-            <thead><tr><th>Cliente</th><th>Cidade</th><th>Responsável</th><th>Espaços ocupados</th><th>Trocas vencidas</th></tr></thead>
-            <tbody>
-              {clients.map((c) => {
-                const s = byClient.get(c.id) ?? { total: 0, occupied: 0, overdue: 0 };
-                return (
-                  <tr key={c.id}>
-                    <td>
-                      <Link href={`/clientes/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
-                      {!c.active && <span className="ml-2 rounded bg-line px-1.5 py-0.5 text-xs text-muted">inativo</span>}
-                    </td>
-                    <td className="text-muted">{c.city ? `${c.city}${c.state ? `/${c.state}` : ""}` : "—"}</td>
-                    <td className="text-muted">{c.contact_name ?? "—"}</td>
-                    <td className="tabular-nums">{s.occupied} de {s.total}</td>
-                    <td className={`tabular-nums ${s.overdue ? "font-medium text-bad" : "text-muted"}`}>{s.overdue}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ClientsBoard clients={summaries} canWrite={canWrite} />
     </>
   );
 }

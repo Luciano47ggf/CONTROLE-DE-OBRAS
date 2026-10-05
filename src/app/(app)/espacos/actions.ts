@@ -49,7 +49,7 @@ const installSchema = z.object({
   swap_days: optInt(1, 3650),
   responsible: optText,
   notes: optText,
-  replace: z.string().optional(),
+  replace_installation_id: z.union([z.uuid(), z.undefined()]).transform((v) => v ?? null),
 });
 
 export async function installArtwork(_prev: ActionState, fd: FormData): Promise<ActionState> {
@@ -64,7 +64,7 @@ export async function installArtwork(_prev: ActionState, fd: FormData): Promise<
     p_swap_days: d.swap_days ?? undefined,
     p_responsible: d.responsible ?? undefined,
     p_notes: d.notes ?? undefined,
-    p_replace_current: d.replace === "1",
+    p_replace_installation_id: d.replace_installation_id ?? undefined,
   });
   if (error) return dbError(error);
   revalidatePath("/", "layout");

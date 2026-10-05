@@ -4,7 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { dbError, formObject, metersToCm, optDecimal, optInt, optText, requiredText, zodErrors } from "@/lib/form";
+import { dbError, dimensionToCm, formObject, optDecimal, optInt, optText, requiredText, zodErrors } from "@/lib/form";
+import { registerArtworkPhotos } from "./photo-actions";
 import type { ActionState, ArtworkStatus } from "@/lib/types";
 
 const schema = z.object({
@@ -15,22 +16,28 @@ const schema = z.object({
   description: optText,
   technique: optText,
   year: optInt(1000, 2100),
-  width_m: metersToCm(true),
-  height_m: metersToCm(true),
-  depth_m: metersToCm(false),
+  width: dimensionToCm(true),
+  height: dimensionToCm(true),
+  depth: dimensionToCm(false),
   weight_kg: optDecimal,
   value: optDecimal,
   notes: optText,
 });
 
 export async function saveArtwork(_prev: ActionState, fd: FormData): Promise<ActionState> {
-  const parsed = schema.safeParse(formObject(fd));
+  const raw = formObject(fd);
+  const parsed = schema.safeParse({
+    ...raw,
+    width: { value: raw.width_value, unit: raw.width_unit },
+    height: { value: raw.height_value, unit: raw.height_unit },
+    depth: { value: raw.depth_value, unit: raw.depth_unit },
+  });
   if (!parsed.success) return zodErrors(parsed.error);
-  const { width_m, height_m, depth_m, ...rest } = parsed.data;
+  const { width, height, depth, ...rest } = parsed.data;
   const id = fd.get("id") as string | null;
   const supabase = await createClient();
 
-  const values = { ...rest, width_cm: width_m!, height_cm: height_m!, depth_cm: depth_m };
+  const values = { ...rest, width_cm: width!, height_cm: height!, depth_cm: depth };
 
   let artworkId = id;
   if (id) {
@@ -40,9 +47,17 @@ export async function saveArtwork(_prev: ActionState, fd: FormData): Promise<Act
     const initial = fd.get("status");
     const status: ArtworkStatus =
       initial === "em_manutencao" || initial === "em_restauracao" || initial === "indisponivel" ? initial : "disponivel";
-    const { data, error } = await supabase.from("artworks").insert({ ...values, status }).select("id").single();
+    const draftId = fd.get("draft_id") as string | null;
+    const { data, error } = await supabase
+      .from("artworks")
+      .insert({ ...values, status, ...(draftId ? { id: draftId } : {}) })
+      .select("id")
+      .single();
     if (error) return dbError(error);
     artworkId = data.id;
+
+    const photoPaths = fd.getAll("photo_path").filter((p): p is string => typeof p === "string" && p.length > 0);
+    if (photoPaths.length) await registerArtworkPhotos(artworkId, photoPaths);
   }
   revalidatePath("/obras");
   redirect(`/obras/${artworkId}`);

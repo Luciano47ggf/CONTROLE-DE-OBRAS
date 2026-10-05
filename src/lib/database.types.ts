@@ -434,6 +434,7 @@ export type Database = {
           name: string;
           notes: string | null;
           phone: string | null;
+          segment: string | null;
           state: string | null;
           updated_at: string;
         };
@@ -451,6 +452,7 @@ export type Database = {
           name: string;
           notes?: string | null;
           phone?: string | null;
+          segment?: string | null;
           state?: string | null;
           updated_at?: string;
         };
@@ -468,10 +470,53 @@ export type Database = {
           name?: string;
           notes?: string | null;
           phone?: string | null;
+          segment?: string | null;
           state?: string | null;
           updated_at?: string;
         };
         Relationships: [];
+      };
+      artwork_repeat_releases: {
+        Row: {
+          artwork_id: string;
+          client_id: string;
+          id: string;
+          reason: string | null;
+          released_at: string;
+          released_by: string | null;
+        };
+        Insert: {
+          artwork_id: string;
+          client_id: string;
+          id?: string;
+          reason?: string | null;
+          released_at?: string;
+          released_by?: string | null;
+        };
+        Update: {
+          artwork_id?: string;
+          client_id?: string;
+          id?: string;
+          reason?: string | null;
+          released_at?: string;
+          released_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "artwork_repeat_releases_artwork_id_fkey";
+            columns: ["artwork_id"];
+            isOneToOne: false;
+            referencedRelation: "artworks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "artwork_repeat_releases_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       installations: {
         Row: {
@@ -1014,33 +1059,23 @@ export type Database = {
       v_spaces: {
         Row: {
           active: boolean | null;
-          artist_name: string | null;
-          artwork_code: string | null;
-          artwork_height_cm: number | null;
-          artwork_id: string | null;
-          artwork_photo: string | null;
-          artwork_thumb: string | null;
-          artwork_title: string | null;
-          artwork_width_cm: number | null;
           client_id: string | null;
           client_name: string | null;
           compatible_available: number | null;
           created_at: string | null;
-          days_on_site: number | null;
-          days_remaining: number | null;
           description: string | null;
-          expected_swap_at: string | null;
           height_cm: number | null;
           id: string | null;
-          installation_id: string | null;
-          installed_at: string | null;
           name: string | null;
+          next_days_remaining: number | null;
+          next_expected_swap_at: string | null;
+          next_swap_status: string | null;
           notes: string | null;
+          occupant_count: number | null;
           photo_path: string | null;
           space_type_id: string | null;
           space_type_name: string | null;
           swap_days: number | null;
-          swap_status: string | null;
           updated_at: string | null;
           width_cm: number | null;
         };
@@ -1073,21 +1108,24 @@ export type Database = {
             referencedRelation: "space_types";
             referencedColumns: ["id"];
           },
-          {
-            foreignKeyName: "installations_artwork_id_fkey";
-            columns: ["artwork_id"];
-            isOneToOne: false;
-            referencedRelation: "artworks";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "installations_artwork_id_fkey";
-            columns: ["artwork_id"];
-            isOneToOne: false;
-            referencedRelation: "v_artworks";
-            referencedColumns: ["id"];
-          },
         ];
+      };
+      v_client_events: {
+        Row: {
+          artwork_code: string | null;
+          artwork_id: string | null;
+          artwork_title: string | null;
+          client_id: string | null;
+          event_id: string | null;
+          from_status: Database["public"]["Enums"]["artwork_status"] | null;
+          kind: string | null;
+          notes: string | null;
+          occurred_at: string | null;
+          space_name: string | null;
+          to_status: Database["public"]["Enums"]["artwork_status"] | null;
+          user_name: string | null;
+        };
+        Relationships: [];
       };
       v_users: {
         Row: {
@@ -1209,7 +1247,7 @@ export type Database = {
           p_artwork_id: string;
           p_installed_at?: string;
           p_notes?: string;
-          p_replace_current?: boolean;
+          p_replace_installation_id?: string;
           p_responsible?: string;
           p_space_id: string;
           p_swap_days?: number;
@@ -1223,6 +1261,7 @@ export type Database = {
         Returns: {
           artist_name: string;
           artwork_id: string;
+          blocked: boolean;
           category_name: string;
           code: string;
           height_cm: number;
@@ -1239,6 +1278,37 @@ export type Database = {
           title: string;
           width_cm: number;
         }[];
+      };
+      recommend_artworks_for_client: {
+        Args: { p_client_id: string; p_limit?: number };
+        Returns: {
+          artist_name: string;
+          artwork_id: string;
+          blocked: boolean;
+          category_name: string;
+          code: string;
+          height_cm: number;
+          idle_days: number;
+          last_at_client: string;
+          photo_path: string;
+          photo_thumb_path: string;
+          score_category: number;
+          score_history: number;
+          score_idle: number;
+          score_size: number;
+          score_total: number;
+          space_height_cm: number;
+          space_id: string;
+          space_name: string;
+          space_width_cm: number;
+          times_at_client: number;
+          title: string;
+          width_cm: number;
+        }[];
+      };
+      release_artwork_repeat: {
+        Args: { p_artwork_id: string; p_client_id: string; p_reason?: string };
+        Returns: string;
       };
       reorder_artwork_photos: {
         Args: { p_artwork_id: string; p_ids: string[] };

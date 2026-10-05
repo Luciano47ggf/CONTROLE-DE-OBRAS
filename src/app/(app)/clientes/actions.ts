@@ -9,6 +9,7 @@ import type { ActionState } from "@/lib/types";
 
 const schema = z.object({
   name: requiredText("Nome"),
+  segment: optText,
   legal_name: optText,
   document: z
     .string()

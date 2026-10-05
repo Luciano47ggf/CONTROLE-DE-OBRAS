@@ -61,12 +61,14 @@ export type ActiveInstallationRow = Override<
   { swap_status: SwapStatus }
 >;
 
+/** Um espaço pode ter várias obras instaladas ao mesmo tempo; quem está nele vem de ActiveInstallationRow (uma linha por instalação) */
 export type SpaceRow = Override<
   NonNull<
     ViewRow<"v_spaces">,
-    "id" | "client_id" | "client_name" | "name" | "width_cm" | "height_cm" | "active" | "compatible_available"
+    | "id" | "client_id" | "client_name" | "name" | "width_cm" | "height_cm" | "active" | "compatible_available"
+    | "occupant_count"
   >,
-  { swap_status: SwapStatus | null }
+  { next_swap_status: SwapStatus | null }
 >;
 
 export type MovementRow = NonNull<
@@ -79,6 +81,13 @@ export type UserRow = NonNull<ViewRow<"v_users">, "id" | "role" | "active" | "cr
 export type Dashboard = { [K in keyof ViewRow<"v_dashboard">]-?: number };
 
 export type Recommendation = PublicSchema["Functions"]["recommend_artworks"]["Returns"][number];
+export type ClientRecommendation = PublicSchema["Functions"]["recommend_artworks_for_client"]["Returns"][number];
+
+/** Linha do tempo do cliente: movimentações de obra + liberações de repetição */
+export type ClientEvent = NonNull<
+  ViewRow<"v_client_events">,
+  "event_id" | "kind" | "client_id" | "occurred_at" | "artwork_id" | "artwork_title" | "artwork_code"
+>;
 
 // ---------------------------------------------------------------- actions
 export type ActionState = {

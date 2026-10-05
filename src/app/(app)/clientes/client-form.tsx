@@ -9,8 +9,8 @@ import type { Client } from "@/lib/types";
 export function ClientForm({ client }: { client?: Client }) {
   const [state, action] = useActionState(saveClient, {});
   const fe = state.fieldErrors ?? {};
-  const t = (name: keyof Client, label: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}, cls = "") => (
-    <Field label={label} name={name} error={fe[name]} className={cls}>
+  const t = (name: keyof Client, label: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}, cls = "", hint?: string) => (
+    <Field label={label} name={name} error={fe[name]} className={cls} hint={hint}>
       <input id={name} name={name} defaultValue={(client?.[name] as string | number | null) ?? ""} className="input" aria-invalid={!!fe[name]} {...extra} />
     </Field>
   );
@@ -23,6 +23,7 @@ export function ClientForm({ client }: { client?: Client }) {
       <fieldset className="grid gap-4 sm:grid-cols-2">
         <legend className="title-serif mb-3 text-lg">Identificação</legend>
         {t("name", "Nome", { required: true }, "sm:col-span-2")}
+        {t("segment", "Tipo de cliente", {}, "", "Ex.: Galeria corporativa, Escritório, Espaço cultural")}
         {t("legal_name", "Razão social")}
         {t("document", "CPF ou CNPJ", { inputMode: "numeric" })}
       </fieldset>

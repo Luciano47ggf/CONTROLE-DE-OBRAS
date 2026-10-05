@@ -5,11 +5,12 @@ import { getSettings } from "@/lib/queries";
 import { PageHeader, Photo, SwapIndicator, EmptyState } from "@/components/ui";
 import { WallPreview } from "@/components/wall-preview";
 import { ScoreBreakdown } from "@/components/score-breakdown";
+import { BlockedBadge } from "@/components/clients/release-repeat";
 import { SpacePhotoUploader } from "@/components/photos/space-photo";
 import { InstallForm } from "@/components/movements/install-form";
 import { ReturnForm, PostponeForm } from "@/components/movements/return-form";
 import { date, dims, plural, swapText } from "@/lib/format";
-import type { HistoryRow, Recommendation, SpaceRow } from "@/lib/types";
+import type { ActiveInstallationRow, HistoryRow, Recommendation, SpaceRow } from "@/lib/types";
 
 function historyReason(r: Recommendation) {
   if (r.times_at_client === 0) return "Inédita neste cliente";
@@ -31,23 +32,27 @@ export default async function SpacePage({
   const supabase = await createClient();
   const limit = sp.mais ? 60 : 12;
 
-  const [{ data: spaceData }, { data: recs, error: recError }, { data: hist }, { data: reserved }, settings, me] = await Promise.all([
-    supabase.from("v_spaces").select("*").eq("id", id).maybeSingle(),
-    supabase.rpc("recommend_artworks", { p_space_id: id, p_limit: limit }),
-    supabase.from("v_installation_history").select("*").eq("space_id", id).order("installed_at", { ascending: false }).limit(50),
-    supabase.from("v_artworks").select("id, code, title, status").eq("reserved_space_id", id),
-    getSettings(),
-    getCurrentUser(),
-  ]);
+  const [{ data: spaceData }, { data: occupantsData }, { data: recs, error: recError }, { data: hist }, { data: reserved }, settings, me] =
+    await Promise.all([
+      supabase.from("v_spaces").select("*").eq("id", id).maybeSingle(),
+      supabase.from("v_active_installations").select("*").eq("space_id", id).order("expected_swap_at"),
+      supabase.rpc("recommend_artworks", { p_space_id: id, p_limit: limit }),
+      supabase.from("v_installation_history").select("*").eq("space_id", id).order("installed_at", { ascending: false }).limit(50),
+      supabase.from("v_artworks").select("id, code, title, status").eq("reserved_space_id", id),
+      getSettings(),
+      getCurrentUser(),
+    ]);
   if (!spaceData) notFound();
   const canWrite = !!me?.canWrite;
   const space = spaceData as SpaceRow;
+  const occupants = (occupantsData ?? []) as ActiveInstallationRow[];
   const recommendations = (recs ?? []) as Recommendation[];
   const history = ((hist ?? []) as HistoryRow[]).filter((h) => !h.is_active);
   const { data: client } = await supabase.from("clients").select("default_swap_days").eq("id", space.client_id).single();
   const swapDays = space.swap_days ?? client?.default_swap_days ?? settings.default_swap_days;
   const usableW = Math.max(space.width_cm - 2 * settings.edge_margin_cm, 0);
   const usableH = Math.max(space.height_cm - 2 * settings.edge_margin_cm, 0);
+  const occupantOptions = occupants.map((o) => ({ installationId: o.installation_id, title: o.artwork_title }));
 
   return (
     <>
@@ -64,49 +69,59 @@ export default async function SpacePage({
         </p>
       )}
 
-      {/* situação atual */}
-      <section className="panel grid gap-6 p-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div className="flex min-h-56 items-center justify-center bg-wall p-5">
-          <WallPreview wallW={space.width_cm} wallH={space.height_cm} artW={space.artwork_width_cm} artH={space.artwork_height_cm}
-            margin={settings.edge_margin_cm} className="h-56 max-w-full" />
+      {/* situação atual: um espaço pode ter mais de uma obra ao mesmo tempo */}
+      <section className="panel p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="title-serif text-xl">{occupants.length === 0 ? "Parede vazia" : "Obras neste espaço"}</h2>
+          {occupants.length > 0 && <span className="text-sm text-muted">{plural(occupants.length, "obra instalada", "obras instaladas")}</span>}
         </div>
-        <div>
-          {space.artwork_id && space.installation_id ? (
-            <>
-              <p className="text-sm text-muted">Obra atual</p>
-              <Link href={`/obras/${space.artwork_id}`} className="title-serif text-2xl hover:underline">{space.artwork_title}</Link>
-              <p className="text-muted">{space.artist_name}, {space.artwork_code}</p>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div><dt className="text-muted">Instalada em</dt><dd>{date(space.installed_at)} ({plural(space.days_on_site ?? 0, "dia", "dias")})</dd></div>
-                <div><dt className="text-muted">Troca prevista</dt><dd>{date(space.expected_swap_at)}</dd></div>
-                <div className="col-span-2">{space.swap_status && <SwapIndicator status={space.swap_status}>{swapText(space.days_remaining)}</SwapIndicator>}</div>
-              </dl>
-              {canWrite && <>
-              <details className="mt-5 border-t border-line pt-4">
-                <summary className="cursor-pointer text-sm font-medium text-accent">Registrar retirada sem substituir</summary>
-                <div className="mt-4"><ReturnForm installationId={space.installation_id} back={`/espacos/${id}`} /></div>
-              </details>
-              <details className="mt-3 border-t border-line pt-4">
-                <summary className="cursor-pointer text-sm font-medium text-accent">Alterar data de troca</summary>
-                <div className="mt-4"><PostponeForm installationId={space.installation_id} current={space.expected_swap_at ?? ""} /></div>
-              </details>
-              </>}
-            </>
-          ) : (
-            <>
-              <p className="title-serif text-2xl italic text-muted">Parede vazia</p>
-              <p className="mt-2 text-muted">
-                Escolha uma das sugestões abaixo para instalar. O prazo de troca padrão deste espaço é de {plural(swapDays, "dia", "dias")}.
-              </p>
-            </>
-          )}
-          {reserved && reserved.length > 0 && (
-            <p className="mt-4 rounded-md bg-accent-tint px-3 py-2 text-sm text-accent">
-              Reservada para cá: {reserved.map((r) => <Link key={r.id} href={`/obras/${r.id}`} className="underline">{r.title}</Link>)}
+
+        {occupants.length === 0 ? (
+          <>
+            <div className="flex min-h-48 items-center justify-center bg-wall p-5">
+              <WallPreview wallW={space.width_cm} wallH={space.height_cm} margin={settings.edge_margin_cm} className="h-48 max-w-full" />
+            </div>
+            <p className="mt-4 text-muted">
+              Escolha uma das sugestões abaixo para instalar. O prazo de troca padrão deste espaço é de {plural(swapDays, "dia", "dias")}.
             </p>
-          )}
-          {space.notes && <p className="mt-4 text-sm text-muted">{space.notes}</p>}
-        </div>
+          </>
+        ) : (
+          <ul className="space-y-5">
+            {occupants.map((o) => (
+              <li key={o.installation_id} className="flex flex-col gap-4 border-t border-line pt-5 first:border-t-0 first:pt-0 sm:flex-row">
+                <Photo path={o.artwork_photo} alt={o.artwork_title} className="h-28 w-28 shrink-0 rounded-sm" />
+                <div className="min-w-0 flex-1">
+                  <Link href={`/obras/${o.artwork_id}`} className="title-serif text-xl hover:underline">{o.artwork_title}</Link>
+                  <p className="text-muted">{o.artist_name}</p>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div><dt className="text-muted">Instalada em</dt><dd>{date(o.installed_at)} ({plural(o.days_on_site ?? 0, "dia", "dias")})</dd></div>
+                    <div><dt className="text-muted">Troca prevista</dt><dd>{date(o.expected_swap_at)}</dd></div>
+                  </dl>
+                  <div className="mt-2"><SwapIndicator status={o.swap_status}>{swapText(o.days_remaining)}</SwapIndicator></div>
+                  {canWrite && (
+                    <>
+                      <details className="mt-4 border-t border-line pt-3">
+                        <summary className="cursor-pointer text-sm font-medium text-accent">Registrar retirada sem substituir</summary>
+                        <div className="mt-3"><ReturnForm installationId={o.installation_id} back={`/espacos/${id}`} /></div>
+                      </details>
+                      <details className="mt-2 border-t border-line pt-3">
+                        <summary className="cursor-pointer text-sm font-medium text-accent">Alterar data de troca</summary>
+                        <div className="mt-3"><PostponeForm installationId={o.installation_id} current={o.expected_swap_at} /></div>
+                      </details>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {reserved && reserved.length > 0 && (
+          <p className="mt-5 rounded-md bg-accent-tint px-3 py-2 text-sm text-accent">
+            Reservada para cá: {reserved.map((r) => <Link key={r.id} href={`/obras/${r.id}`} className="underline">{r.title}</Link>)}
+          </p>
+        )}
+        {space.notes && <p className="mt-4 text-sm text-muted">{space.notes}</p>}
       </section>
 
       {(space.photo_path || canWrite) && (
@@ -130,7 +145,7 @@ export default async function SpacePage({
           <span className="text-sm text-muted">{plural(space.compatible_available, "obra disponível cabe", "obras disponíveis cabem")} aqui</span>
         </div>
         <p className="mb-6 max-w-prose text-sm text-muted">
-          Só aparecem obras disponíveis que cabem na área útil. A nota soma tamanho (40), histórico neste cliente (30), tempo parada no estoque (20) e categoria adequada ao tipo de espaço (10).
+          Só aparecem obras disponíveis que cabem na área útil. A nota soma tamanho (40), histórico neste cliente (30), tempo parada no estoque (20) e categoria adequada ao tipo de espaço (10). Uma obra que já passou por este cliente fica marcada e só volta a ser recomendada normalmente depois de uma liberação manual.
         </p>
 
         {recError ? (
@@ -151,6 +166,11 @@ export default async function SpacePage({
                       {r.artist_name}, {r.code}{r.category_name ? `, ${r.category_name.toLowerCase()}` : ""}
                     </p>
                     <p className="mt-1 text-sm">{dims(r.width_cm, r.height_cm)}</p>
+                    {r.blocked && (
+                      <div className="mt-2">
+                        <BlockedBadge artworkId={r.artwork_id} clientId={space.client_id} />
+                      </div>
+                    )}
                     <ul className="mt-2 space-y-0.5 text-sm text-muted">
                       <li>{historyReason(r)}</li>
                       <li>Parada no estoque há {plural(r.idle_days, "dia", "dias")}</li>
@@ -163,15 +183,13 @@ export default async function SpacePage({
                   </div>
                   <div className="md:text-right">
                     <p className="font-serif text-4xl font-medium tabular-nums">{Math.round(r.score_total)}%</p>
-                    <p className="text-sm text-muted">{i === 0 ? "melhor opção" : "compatível"}</p>
+                    <p className="text-sm text-muted">{r.blocked ? "bloqueada" : i === 0 ? "melhor opção" : "compatível"}</p>
                   </div>
                 </div>
-                {canWrite && <details className="border-t border-line">
-                  <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-accent">
-                    {space.artwork_id ? "Trocar por esta obra" : "Instalar esta obra"}
-                  </summary>
+                {canWrite && !r.blocked && <details className="border-t border-line">
+                  <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-accent">Instalar esta obra</summary>
                   <div className="px-5 pb-5">
-                    <InstallForm artworkId={r.artwork_id} spaceId={id} occupiedBy={space.artwork_title} defaultSwapDays={swapDays} />
+                    <InstallForm artworkId={r.artwork_id} spaceId={id} occupants={occupantOptions} defaultSwapDays={swapDays} />
                   </div>
                 </details>}
               </li>

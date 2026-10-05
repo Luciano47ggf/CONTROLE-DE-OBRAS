@@ -36,9 +36,14 @@ export default async function ArtworkPage({ params }: { params: Promise<{ id: st
   const current = active as ActiveInstallationRow | null;
 
   let reservedSpace: SpaceRow | null = null;
+  let reservedSpaceOccupants: ActiveInstallationRow[] = [];
   if (a.reserved_space_id) {
-    const { data: s } = await supabase.from("v_spaces").select("*").eq("id", a.reserved_space_id).maybeSingle();
+    const [{ data: s }, { data: occ }] = await Promise.all([
+      supabase.from("v_spaces").select("*").eq("id", a.reserved_space_id).maybeSingle(),
+      supabase.from("v_active_installations").select("*").eq("space_id", a.reserved_space_id).order("expected_swap_at"),
+    ]);
     reservedSpace = s as SpaceRow | null;
+    reservedSpaceOccupants = (occ ?? []) as ActiveInstallationRow[];
   }
 
   const facts: [string, React.ReactNode][] = [
@@ -111,7 +116,8 @@ export default async function ArtworkPage({ params }: { params: Promise<{ id: st
                 {canWrite && <div className="mt-5 space-y-5 border-t border-line pt-5">
                   <div>
                     <p className="mb-3 text-sm font-medium">Registrar instalação</p>
-                    <InstallForm artworkId={a.id} spaceId={reservedSpace.id} occupiedBy={reservedSpace.artwork_title}
+                    <InstallForm artworkId={a.id} spaceId={reservedSpace.id}
+                      occupants={reservedSpaceOccupants.map((o) => ({ installationId: o.installation_id, title: o.artwork_title }))}
                       defaultSwapDays={reservedSpace.swap_days ?? settings.default_swap_days} />
                   </div>
                   <ReservationActions artworkId={a.id} canDispatch={a.status === "reservada"} />

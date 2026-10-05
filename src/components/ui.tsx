@@ -9,7 +9,7 @@ export function PageHeader({
   back,
   actions,
 }: {
-  title: string;
+  title: ReactNode;
   subtitle?: ReactNode;
   back?: { href: string; label: string };
   actions?: ReactNode;
