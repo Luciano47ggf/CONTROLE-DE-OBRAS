@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ROLE_LABEL } from "@/lib/format";
 import { useState } from "react";
@@ -26,8 +27,8 @@ export function Sidebar({ userName, role, isAdmin, signOut }: { userName: string
   return (
     <>
       {/* barra superior no celular/tablet */}
-      <div className="sticky top-0 z-30 flex items-center justify-between bg-ink px-4 py-3 text-paper lg:hidden">
-        <span className="font-serif text-lg">Sic Bartão</span>
+      <div className="sticky top-0 z-30 flex items-center justify-between bg-ink px-4 py-2 text-paper lg:hidden">
+        <Image src="/SIC01.webp" alt="Sic Bartão" width={500} height={353} className="h-10 w-auto" priority />
         <button onClick={() => setOpen((v) => !v)} aria-label={open ? "Fechar menu" : "Abrir menu"} className="p-1">
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -38,9 +39,9 @@ export function Sidebar({ userName, role, isAdmin, signOut }: { userName: string
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="px-6 pb-6 pt-7">
-          <p className="font-serif text-2xl text-paper">Sic Bartão</p>
-          <p className="text-sm text-paper/50">Circulação de obras</p>
+        <div className="px-6 pb-4 pt-7">
+          <Image src="/SIC01.webp" alt="Sic Bartão" width={500} height={353} className="h-24 w-auto" priority />
+          <p className="mt-1 text-sm text-paper/50">Circulação de obras</p>
         </div>
         <nav className="flex-1 space-y-0.5 px-3" aria-label="Principal">
           {[...NAV, ...(isAdmin ? ADMIN_NAV : [])].map(({ href, label, icon: Icon }) => (

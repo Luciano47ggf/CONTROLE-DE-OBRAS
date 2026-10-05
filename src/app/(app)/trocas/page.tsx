@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader, SwapIndicator, EmptyState } from "@/components/ui";
-import { date, plural, swapRowClass, swapText, swapUrgency } from "@/lib/format";
+import { PageHeader } from "@/components/ui";
+import { SwapsBoard } from "./swaps-board";
+import { plural } from "@/lib/format";
 import type { ActiveInstallationRow, SwapStatus } from "@/lib/types";
 
 const FILTERS: { value: SwapStatus | "todas"; label: string }[] = [
@@ -34,32 +35,11 @@ export default async function SwapsPage({ searchParams }: { searchParams: Promis
         ))}
       </nav>
 
-      {rows.length === 0 ? (
-        <EmptyState title={filtro === "vermelho" ? "Nenhuma troca vencida" : "Nada por aqui"}>
-          {filtro === "vermelho" ? "Todas as obras instaladas estão dentro do prazo." : "Nenhuma instalação neste filtro."}
-        </EmptyState>
-      ) : (
-        <div className="panel overflow-x-auto">
-          <table className="table">
-            <thead><tr><th>Cliente e espaço</th><th>Obra</th><th>Instalada em</th><th>Troca prevista</th><th>Prazo</th><th></th></tr></thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.installation_id} className={swapRowClass(r.days_remaining)}>
-                  <td>
-                    <Link href={`/clientes/${r.client_id}`} className="font-medium hover:underline">{r.client_name}</Link>
-                    <span className="block text-muted">{r.space_name}</span>
-                  </td>
-                  <td><Link href={`/obras/${r.artwork_id}`} className="font-serif text-base hover:underline">{r.artwork_title}</Link></td>
-                  <td className="tabular-nums">{date(r.installed_at)}</td>
-                  <td className="tabular-nums">{date(r.expected_swap_at)}</td>
-                  <td><SwapIndicator status={swapUrgency(r.swap_status, r.days_remaining)}>{swapText(r.days_remaining)}</SwapIndicator></td>
-                  <td className="text-right"><Link href={`/espacos/${r.space_id}`} className="btn-secondary">Encontrar nova obra</Link></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <SwapsBoard
+        rows={rows}
+        emptyTitle={filtro === "vermelho" ? "Nenhuma troca vencida" : "Nada por aqui"}
+        emptyText={filtro === "vermelho" ? "Todas as obras instaladas estão dentro do prazo." : "Nenhuma instalação neste filtro."}
+      />
     </>
   );
 }
