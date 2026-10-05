@@ -15,6 +15,7 @@ create function tests.logout() returns void language sql as $$
 $$;
 create function tests.art(p_code text) returns uuid language sql stable as $$ select id from public.artworks where code = p_code $$;
 create function tests.space(p_name text) returns uuid language sql stable as $$ select id from public.client_spaces where name = p_name $$;
+create function tests.environment(p_name text) returns uuid language sql stable as $$ select id from public.client_environments where name = p_name $$;
 grant execute on all functions in schema tests to authenticated, anon;
 
 -- Usuários
@@ -40,13 +41,19 @@ insert into space_type_categories
 insert into artists (name) values ('T-Artista');
 insert into clients (name) values ('T-Hotel'), ('T-Empresa');
 
+-- Um ambiente por cliente (nomes distintos para tests.environment() não ser ambíguo)
+insert into client_environments (client_id, name)
+select c.id, v.env from (values ('T-Hotel', 'T-Ambiente Hotel'), ('T-Empresa', 'T-Ambiente Empresa')) v(client, env)
+  join clients c on c.name = v.client;
+
 -- Recepção 400×250 → área útil 360×210; Corredor 260×200 → 220×160; Sala 300×200 → 260×160
-insert into client_spaces (client_id, name, space_type_id, width_cm, height_cm)
-select c.id, v.name, t.id, v.w, v.h
-  from (values ('T-Hotel', 'T-Recepção', 'T-Recepção', 400, 250),
-               ('T-Hotel', 'T-Corredor', null, 260, 200),
-               ('T-Empresa', 'T-Sala', null, 300, 200)) v(client, name, type, w, h)
+insert into client_spaces (client_id, environment_id, name, space_type_id, width_cm, height_cm)
+select c.id, e.id, v.name, t.id, v.w, v.h
+  from (values ('T-Hotel', 'T-Ambiente Hotel', 'T-Recepção', 'T-Recepção', 400, 250),
+               ('T-Hotel', 'T-Ambiente Hotel', 'T-Corredor', null, 260, 200),
+               ('T-Empresa', 'T-Ambiente Empresa', 'T-Sala', null, 300, 200)) v(client, env, name, type, w, h)
   join clients c on c.name = v.client
+  join client_environments e on e.client_id = c.id and e.name = v.env
   left join space_types t on t.name = v.type;
 
 insert into artworks (code, title, artist_id, category_id, width_cm, height_cm, status)

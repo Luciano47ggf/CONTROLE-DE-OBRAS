@@ -80,7 +80,7 @@ export function ClientDrawer({
           <>
             <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
               <div className="flex min-w-0 items-center gap-3">
-                <ClientAvatar name={data.client.name} />
+                <ClientAvatar name={data.client.name} logoPath={data.client.logo_path} />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-serif text-xl">{data.client.name}</p>

@@ -10,10 +10,10 @@ import type { ActionState } from "@/lib/types";
 
 const BUCKET = "acervo";
 
-type Supa = Awaited<ReturnType<typeof createClient>>;
+export type Supa = Awaited<ReturnType<typeof createClient>>;
 
 /** Baixa o original já enviado pelo navegador e grava as versões de exibição e miniatura */
-async function processOriginal(supabase: Supa, originalPath: string) {
+export async function processOriginal(supabase: Supa, originalPath: string) {
   const { data: blob, error } = await supabase.storage.from(BUCKET).download(originalPath);
   if (error || !blob) throw new Error("O arquivo enviado não foi encontrado no armazenamento.");
   const variants = await makeVariants(Buffer.from(await blob.arrayBuffer()));
@@ -157,5 +157,21 @@ export async function setSpacePhoto(spaceId: string, path: string): Promise<Acti
     return { error: (e as Error).message };
   }
   revalidatePath(`/espacos/${spaceId}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Remove a foto do espaço, sem exigir um novo upload */
+export async function removeSpacePhoto(spaceId: string): Promise<ActionState> {
+  const me = await getCurrentUser();
+  if (!me?.canWrite) return { error: "Seu usuário não pode alterar fotos." };
+  const supabase = await createClient();
+  const { data: space } = await supabase.from("client_spaces").select("photo_path").eq("id", spaceId).single();
+  if (!space?.photo_path) return { ok: true };
+  const { error } = await supabase.from("client_spaces").update({ photo_path: null }).eq("id", spaceId);
+  if (error) return dbError(error);
+  await supabase.storage.from(BUCKET).remove([space.photo_path]);
+  revalidatePath(`/espacos/${spaceId}`);
+  revalidatePath("/", "layout");
   return { ok: true };
 }

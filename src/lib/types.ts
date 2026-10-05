@@ -37,6 +37,7 @@ export type Artist = Tables<"artists">;
 export type Category = Tables<"categories">;
 export type SpaceType = Tables<"space_types">;
 export type Client = Tables<"clients">;
+export type ClientEnvironment = Tables<"client_environments">;
 export type Settings = Pick<
   Tables<"app_settings">,
   "edge_margin_cm" | "default_swap_days" | "swap_warning_days" | "history_window_days" | "idle_max_days"
@@ -61,12 +62,12 @@ export type ActiveInstallationRow = Override<
   { swap_status: SwapStatus }
 >;
 
-/** Um espaço pode ter várias obras instaladas ao mesmo tempo; quem está nele vem de ActiveInstallationRow (uma linha por instalação) */
+/** Ponto de exposição (dentro de um ambiente do cliente); quem está nele vem de ActiveInstallationRow */
 export type SpaceRow = Override<
   NonNull<
     ViewRow<"v_spaces">,
     | "id" | "client_id" | "client_name" | "name" | "width_cm" | "height_cm" | "active" | "compatible_available"
-    | "occupant_count"
+    | "occupant_count" | "environment_id" | "environment_name"
   >,
   { next_swap_status: SwapStatus | null }
 >;

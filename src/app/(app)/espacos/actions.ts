@@ -5,10 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dbError, formObject, metersToCm, optInt, optText, requiredText, todayOr, zodErrors } from "@/lib/form";
-import type { ActionState } from "@/lib/types";
+import type { ActionState, Recommendation } from "@/lib/types";
 
 const spaceSchema = z.object({
   client_id: z.uuid(),
+  environment_id: z.uuid("Escolha o ambiente."),
   name: requiredText("Nome"),
   description: optText,
   space_type_id: z.union([z.uuid(), z.undefined()]).transform((v) => v ?? null),
@@ -79,10 +80,18 @@ export async function reserveArtwork(_prev: ActionState, fd: FormData): Promise<
     p_artwork_id: artwork_id,
     p_space_id: space_id,
     p_notes: (fd.get("notes") as string) || undefined,
+    p_planned_at: (fd.get("planned_at") as string) || undefined,
   });
   if (error) return dbError(error);
   revalidatePath("/", "layout");
   redirect(`/espacos/${space_id}?reservada=1`);
+}
+
+/** Candidatos para um ponto de exposição (recomendação + busca no front), chamável direto do drawer de instalação */
+export async function getSpaceCandidates(spaceId: string): Promise<Recommendation[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("recommend_artworks", { p_space_id: spaceId, p_limit: 300 });
+  return (data ?? []) as Recommendation[];
 }
 
 const returnSchema = z.object({

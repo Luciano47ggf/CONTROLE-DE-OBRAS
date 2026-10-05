@@ -15,12 +15,25 @@ export default async function EditSpacePage({ params }: { params: Promise<{ id: 
   ]);
   if (!data) notFound();
   const space = data as SpaceRow;
+  const { data: environments } = await supabase
+    .from("client_environments")
+    .select("id, name")
+    .eq("client_id", space.client_id)
+    .eq("active", true)
+    .order("position")
+    .order("name");
   return (
     <>
       <PageHeader title={`Editar ${space.name}`} subtitle={space.client_name}
         back={{ href: `/clientes/${space.client_id}`, label: space.client_name }} />
       <div className="panel p-6 sm:p-8">
-        <SpaceForm clientId={space.client_id} space={space} spaceTypes={catalogs.spaceTypes} margin={settings.edge_margin_cm} />
+        <SpaceForm
+          clientId={space.client_id}
+          space={space}
+          environments={environments ?? []}
+          spaceTypes={catalogs.spaceTypes}
+          margin={settings.edge_margin_cm}
+        />
       </div>
     </>
   );

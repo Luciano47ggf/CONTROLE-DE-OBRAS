@@ -5,6 +5,7 @@ import { saveSpace } from "./actions";
 import { Field } from "@/components/ui";
 import { FormAlert, SubmitButton } from "@/components/submit-button";
 import { WallPreview } from "@/components/wall-preview";
+import Link from "next/link";
 import type { SpaceRow } from "@/lib/types";
 
 function toM(cm: number | null | undefined) {
@@ -19,11 +20,15 @@ export function SpaceForm({
   clientId,
   space,
   spaceTypes,
+  environments,
+  defaultEnvironmentId,
   margin,
 }: {
   clientId: string;
   space?: SpaceRow;
   spaceTypes: { id: string; name: string }[];
+  environments: { id: string; name: string }[];
+  defaultEnvironmentId?: string;
   margin: number;
 }) {
   const [state, action] = useActionState(saveSpace, {});
@@ -39,7 +44,25 @@ export function SpaceForm({
         <input type="hidden" name="client_id" value={clientId} />
         {space && <input type="hidden" name="id" value={space.id} />}
         <FormAlert error={state.error} />
-        <Field label="Nome do espaço" name="name" error={fe.name} hint="Ex.: Parede da recepção">
+        <Field label="Ambiente" name="environment_id" error={fe.environment_id} hint="Agrupa os pontos de exposição deste cliente">
+          <select
+            id="environment_id"
+            name="environment_id"
+            defaultValue={space?.environment_id ?? defaultEnvironmentId ?? ""}
+            className="input"
+            required
+            aria-invalid={!!fe.environment_id}
+          >
+            <option value="" disabled>Escolha…</option>
+            {environments.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          {environments.length === 0 && (
+            <p className="mt-1 text-xs text-muted">
+              Nenhum ambiente cadastrado. <Link href={`/clientes/${clientId}/ambientes/novo`} className="link">Cadastre primeiro</Link>.
+            </p>
+          )}
+        </Field>
+        <Field label="Nome do ponto de exposição" name="name" error={fe.name} hint="Ex.: Parede A, Nicho 1">
           <input id="name" name="name" defaultValue={space?.name} className="input" required aria-invalid={!!fe.name} />
         </Field>
         <div className="grid grid-cols-2 gap-4">

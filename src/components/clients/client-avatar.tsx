@@ -1,3 +1,5 @@
+import { photoUrl } from "@/lib/format";
+
 const TINTS = [
   "bg-accent-tint text-accent",
   "bg-warn-tint text-warn",
@@ -12,8 +14,20 @@ function hashName(name: string) {
   return h;
 }
 
-/** Avatar com a inicial do nome; cor determinística (mesmo cliente, mesma cor) */
-export function ClientAvatar({ name, size = 44 }: { name: string; size?: number }) {
+/** Logo do cliente; sem logo, cai para um avatar com a inicial do nome (cor determinística) */
+export function ClientAvatar({ name, logoPath, size = 44 }: { name: string; logoPath?: string | null; size?: number }) {
+  const url = photoUrl(logoPath);
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={url}
+        alt={`Logo de ${name}`}
+        className="shrink-0 rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   const tint = TINTS[hashName(name) % TINTS.length];
   return (

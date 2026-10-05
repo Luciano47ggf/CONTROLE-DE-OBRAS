@@ -30,7 +30,9 @@ export function RecommendationCard({ r, clientId }: { r: ClientRecommendation; c
           <p className="text-xs text-muted">{r.artist_name}</p>
         </div>
         <p className="text-xs">Obra: {dims(r.width_cm, r.height_cm)}</p>
-        <p className="text-xs text-muted">Cabe na {r.space_name} ({dims(r.space_width_cm, r.space_height_cm)})</p>
+        <p className="text-xs text-muted">
+          Cabe {r.environment_name ? `no ${r.space_name} — ${r.environment_name}` : `na ${r.space_name}`} ({dims(r.space_width_cm, r.space_height_cm)})
+        </p>
         <div className="flex flex-wrap gap-1 pt-0.5">
           {r.category_name && <span className="rounded bg-wall px-1.5 py-0.5 text-[11px] text-muted">{r.category_name}</span>}
           <span className="rounded bg-wall px-1.5 py-0.5 text-[11px] text-muted">{sizeTag(r.width_cm, r.height_cm)}</span>

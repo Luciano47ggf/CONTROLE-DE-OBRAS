@@ -2,8 +2,9 @@
 
 import { useActionState } from "react";
 import { saveClient } from "./actions";
-import { Field } from "@/components/ui";
+import { Field, Photo } from "@/components/ui";
 import { FormAlert, SubmitButton } from "@/components/submit-button";
+import { ClientLogoUploader } from "@/components/photos/client-logo";
 import type { Client } from "@/lib/types";
 
 export function ClientForm({ client }: { client?: Client }) {
@@ -53,6 +54,14 @@ export function ClientForm({ client }: { client?: Client }) {
       </fieldset>
 
       <SubmitButton>{client ? "Salvar alterações" : "Cadastrar cliente"}</SubmitButton>
+
+      {client && (
+        <div className="border-t border-line pt-6">
+          <p className="label mb-2">Logo do cliente</p>
+          {client.logo_path && <Photo path={client.logo_path} alt={client.name} className="mb-3 h-24 w-24 rounded-full" />}
+          <ClientLogoUploader clientId={client.id} hasLogo={!!client.logo_path} />
+        </div>
+      )}
     </form>
   );
 }

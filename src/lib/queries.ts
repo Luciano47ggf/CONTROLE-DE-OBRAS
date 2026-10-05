@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "./supabase/server";
-import type { ActiveInstallationRow, Client, ClientEvent, ClientRecommendation, Settings, SpaceRow } from "./types";
+import type { ActiveInstallationRow, Client, ClientEnvironment, ClientEvent, ClientRecommendation, Settings, SpaceRow } from "./types";
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
@@ -17,12 +17,24 @@ export async function getSettings(): Promise<Settings> {
   };
 }
 
+/** Obra reservada (troca planejada) para um ponto de exposição deste cliente, ainda não instalada */
+export type SpaceReservation = {
+  artworkId: string;
+  title: string;
+  artistName: string;
+  spaceId: string;
+  plannedAt: string | null;
+};
+
 export type ClientWorkspace = {
   client: Client;
+  environments: ClientEnvironment[];
   spaces: SpaceRow[];
   occupants: ActiveInstallationRow[];
+  reservations: SpaceReservation[];
   recommendations: ClientRecommendation[];
   events: ClientEvent[];
+  defaultSwapDays: number;
 };
 
 /**
@@ -30,20 +42,37 @@ export type ClientWorkspace = {
  * página maximizada (/clientes/[id]) e por uma Server Action equivalente para o drawer.
  */
 export async function loadClientWorkspace(supabase: Supa, clientId: string): Promise<ClientWorkspace | null> {
-  const [{ data: client }, { data: spaces }, { data: occupants }, { data: recs }, { data: events }] = await Promise.all([
-    supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
-    supabase.from("v_spaces").select("*").eq("client_id", clientId).eq("active", true).order("name"),
-    supabase.from("v_active_installations").select("*").eq("client_id", clientId).order("expected_swap_at"),
-    supabase.rpc("recommend_artworks_for_client", { p_client_id: clientId, p_limit: 30 }),
-    supabase.from("v_client_events").select("*").eq("client_id", clientId).order("occurred_at", { ascending: false }).limit(200),
-  ]);
+  const [{ data: client }, { data: environments }, { data: spaces }, { data: occupants }, { data: reserved }, { data: recs }, { data: events }, settings] =
+    await Promise.all([
+      supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
+      supabase.from("client_environments").select("*").eq("client_id", clientId).eq("active", true).order("position").order("name"),
+      supabase.from("v_spaces").select("*").eq("client_id", clientId).eq("active", true).order("name"),
+      supabase.from("v_active_installations").select("*").eq("client_id", clientId).order("expected_swap_at"),
+      supabase
+        .from("v_artworks")
+        .select("id, title, artist_name, reserved_space_id, reserved_planned_at")
+        .eq("reserved_client_id", clientId),
+      supabase.rpc("recommend_artworks_for_client", { p_client_id: clientId, p_limit: 30 }),
+      supabase.from("v_client_events").select("*").eq("client_id", clientId).order("occurred_at", { ascending: false }).limit(200),
+      getSettings(),
+    ]);
   if (!client) return null;
+  const c = client as Client;
   return {
-    client: client as Client,
+    client: c,
+    environments: (environments ?? []) as ClientEnvironment[],
     spaces: (spaces ?? []) as SpaceRow[],
     occupants: (occupants ?? []) as ActiveInstallationRow[],
+    reservations: (reserved ?? []).map((r) => ({
+      artworkId: r.id!,
+      title: r.title!,
+      artistName: r.artist_name!,
+      spaceId: r.reserved_space_id!,
+      plannedAt: r.reserved_planned_at,
+    })),
     recommendations: (recs ?? []) as ClientRecommendation[],
     events: (events ?? []) as ClientEvent[],
+    defaultSwapDays: c.default_swap_days ?? settings.default_swap_days,
   };
 }
 

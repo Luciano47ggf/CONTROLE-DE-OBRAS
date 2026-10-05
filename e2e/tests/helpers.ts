@@ -20,9 +20,18 @@ export async function createClient(page: Page, name: string) {
   return page.url().split("/").pop()!;
 }
 
-export async function createSpace(page: Page, clientId: string, name: string, w: string, h: string) {
+export async function createEnvironment(page: Page, clientId: string, name: string) {
+  await page.goto(`/clientes/${clientId}/ambientes/novo`);
+  await page.getByLabel("Nome do ambiente").fill(name);
+  await page.getByRole("button", { name: "Cadastrar ambiente" }).click();
+  await expect(page).toHaveURL(new RegExp(`/clientes/${clientId}$`));
+}
+
+/** Ponto de exposição dentro de um ambiente já existente no cliente (ver createEnvironment) */
+export async function createSpace(page: Page, clientId: string, environmentName: string, name: string, w: string, h: string) {
   await page.goto(`/clientes/${clientId}/espacos/novo`);
-  await page.getByLabel("Nome do espaço").fill(name);
+  await page.getByLabel("Ambiente").selectOption({ label: environmentName });
+  await page.getByLabel("Nome do ponto de exposição").fill(name);
   await page.getByLabel("Largura disponível (m)").fill(w);
   await page.getByLabel("Altura disponível (m)").fill(h);
   await page.getByRole("button", { name: "Cadastrar espaço" }).click();
@@ -34,8 +43,8 @@ export async function createArtwork(page: Page, a: { code: string; title: string
   await page.getByLabel("Código interno").fill(a.code);
   await page.getByLabel("Nome da obra").fill(a.title);
   await page.getByLabel("Artista").selectOption({ label: a.artist });
-  await page.getByLabel("Largura (m)").fill(a.w);
-  await page.getByLabel("Altura (m)").fill(a.h);
+  await page.getByLabel("Largura", { exact: true }).fill(a.w);
+  await page.getByLabel("Altura", { exact: true }).fill(a.h);
   await page.getByRole("button", { name: "Cadastrar obra" }).click();
   await expect(page.getByRole("heading", { level: 1, name: a.title })).toBeVisible();
   return page.url().split("/").pop()!;

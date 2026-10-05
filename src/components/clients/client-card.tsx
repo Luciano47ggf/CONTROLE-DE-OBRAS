@@ -1,6 +1,6 @@
 "use client";
 
-import { Square, Frame, CalendarClock } from "lucide-react";
+import { Square, Frame, CalendarClock, LayoutGrid } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
 import { Menu, MenuLink } from "@/components/menu";
 import { Photo } from "@/components/ui";
@@ -24,7 +24,7 @@ export function ClientCard({ client, canWrite, onOpen }: { client: ClientSummary
     >
       <div className="flex items-start justify-between gap-2 px-5 pt-5">
         <div className="flex min-w-0 items-center gap-3">
-          <ClientAvatar name={client.name} />
+          <ClientAvatar name={client.name} logoPath={client.logoPath} />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate font-medium">{client.name}</p>
@@ -55,7 +55,10 @@ export function ClientCard({ client, canWrite, onOpen }: { client: ClientSummary
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-5 text-sm text-muted">
         <span className="flex items-center gap-1.5">
-          <Square size={13} /> <span className="tabular-nums text-ink">{client.spaceCount}</span> {plural(client.spaceCount, "espaço", "espaços")}
+          <LayoutGrid size={13} /> <span className="tabular-nums text-ink">{client.environmentCount}</span> {plural(client.environmentCount, "ambiente", "ambientes")}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Square size={13} /> <span className="tabular-nums text-ink">{client.spaceCount}</span> {plural(client.spaceCount, "ponto", "pontos")}
         </span>
         <span className="flex items-center gap-1.5">
           <Frame size={13} /> <span className="tabular-nums text-ink">{client.occupantCount}</span> {plural(client.occupantCount, "obra", "obras")}

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createArtist, createArtwork, createClient, createSpace, uid } from "./helpers";
+import { createArtist, createArtwork, createClient, createEnvironment, createSpace, uid } from "./helpers";
 
 test.use({ storageState: "e2e/.auth/admin.json" });
 
@@ -14,42 +14,48 @@ test("do cadastro à instalação, troca e retirada, com histórico automático"
 
   await createArtist(page, artist);
   const clientId = await createClient(page, client);
+  await createEnvironment(page, clientId, "Recepção");
   // Parede 4 × 2,5 com margem padrão de 0,20 m → área útil 3,6 × 2,1
-  await createSpace(page, clientId, "Recepção", "4", "2,5");
+  await createSpace(page, clientId, "Recepção", "Parede A", "4", "2,5");
   const fitsId = await createArtwork(page, { code: `C-${id}`, title: fits, artist, w: "3,2", h: "2" });
   await createArtwork(page, { code: `G-${id}`, title: tooBig, artist, w: "3,8", h: "2,2" }); // cabe na parede, não na margem
   await createArtwork(page, { code: `S-${id}`, title: second, artist, w: "1,5", h: "1" });
 
-  // Cartão do cliente: espaço vazio com obras compatíveis
+  // Ponto vazio no painel do cliente
   await page.goto(`/clientes/${clientId}`);
-  const card = page.locator("article", { hasText: "Recepção" });
-  await expect(card.getByText("Parede vazia")).toBeVisible();
-  await card.getByRole("link", { name: "Ver sugestões" }).click();
+  const spaceCard = (name: string) => page.locator("div.panel", { has: page.getByRole("link", { name, exact: true }) }).last();
+  await expect(spaceCard("Parede A").getByText("Vazio, sem obra no momento.")).toBeVisible();
 
-  // Sugestões: só o que cabe com margem, com nota
-  // cada sugestão é identificada pelo link com o título (textos ocultos dos formulários não contam)
-  const suggestions = page.locator("ol > li");
-  const item = (title: string) => suggestions.filter({ has: page.getByRole("link", { name: title, exact: true }) });
-  await expect(item(fits)).toHaveCount(1);
-  await expect(item(tooBig)).toHaveCount(0);
-  const fitsItem = item(fits);
-  await expect(fitsItem.getByText(/^\d{2,3}%$/)).toBeVisible();
-  await expect(fitsItem.getByText("Inédita neste cliente")).toBeVisible();
+  // Abre o drawer de instalação a partir do ponto: só o que cabe aparece
+  await spaceCard("Parede A").getByRole("button", { name: "Adicionar obra" }).click();
+  const installDrawer = page.getByRole("dialog", { name: /Adicionar obra/ });
+  await expect(installDrawer).toBeVisible();
+  const candidate = (title: string) => installDrawer.locator("li", { has: installDrawer.getByRole("link", { name: title, exact: true }) });
+  await expect(candidate(fits)).toHaveCount(1);
+  await expect(candidate(tooBig)).toHaveCount(0);
+  await expect(candidate(fits).getByText(/^\d{1,3}% compatível$/)).toBeVisible();
+  await expect(candidate(fits).getByText("Inédita neste cliente")).toBeVisible();
 
-  // Instalar
-  await fitsItem.getByText("Instalar esta obra").click();
-  await fitsItem.getByLabel("Responsável").fill("Equipe E2E");
-  await fitsItem.getByRole("button", { name: "Instalar agora" }).click();
+  // Instala
+  await candidate(fits).getByText("Instalar esta obra").click();
+  await candidate(fits).getByLabel("Responsável").fill("Equipe E2E");
+  await candidate(fits).getByRole("button", { name: "Instalar agora" }).click();
   await expect(page.getByRole("status")).toContainText("Obra instalada");
+  const spaceId = page.url().split("/").pop()!.split("?")[0]!;
   await expect(page.getByRole("link", { name: fits }).first()).toBeVisible();
   await expect(page.getByText("Faltam 90 dias")).toBeVisible();
 
-  // A obra instalada sai das sugestões; trocar pela segunda substitui e devolve a primeira
-  await expect(item(fits)).toHaveCount(0);
-  const secondItem = item(second);
-  await secondItem.getByText("Trocar por esta obra").click();
-  await expect(secondItem.getByText(`“${fits}” será retirada`)).toBeVisible();
-  await secondItem.getByRole("button", { name: "Substituir e instalar" }).click();
+  // Substituir pela segunda obra, direto do ponto no painel do cliente
+  await page.goto(`/clientes/${clientId}`);
+  await expect(spaceCard("Parede A").getByRole("link", { name: fits, exact: true })).toBeVisible();
+  await spaceCard("Parede A").getByRole("button", { name: `Mais opções de Parede A` }).click();
+  await page.getByRole("menuitem", { name: "Substituir obra" }).click();
+  const substituteDrawer = page.getByRole("dialog", { name: /Substituir obra/ });
+  await expect(substituteDrawer).toBeVisible();
+  const subCandidate = (title: string) => substituteDrawer.locator("li", { has: substituteDrawer.getByRole("link", { name: title, exact: true }) });
+  await subCandidate(second).getByText("Substituir por esta obra").click();
+  await expect(subCandidate(second).getByText(`“${fits}” será retirada`)).toBeVisible();
+  await subCandidate(second).getByRole("button", { name: "Substituir e instalar" }).click();
   await expect(page.getByRole("status")).toContainText("Obra instalada");
 
   // Histórico do espaço registra a primeira obra, sem cadastro manual
@@ -65,17 +71,21 @@ test("do cadastro à instalação, troca e retirada, com histórico automático"
   await expect(page.getByText("Instalada para disponível")).toBeVisible();
   await expect(page.getByText(new RegExp(`Substituída por S-${id}`))).toBeVisible();
 
-  // Histórico do cliente mostra as duas
+  // Histórico do cliente (aba) mostra as duas obras
   await page.goto(`/clientes/${clientId}`);
-  const clientHistory = page.locator("section", { has: page.getByRole("heading", { name: "Obras que já passaram por aqui" }) });
-  await expect(clientHistory.getByRole("link", { name: fits })).toBeVisible();
-  await expect(clientHistory.getByRole("link", { name: second })).toBeVisible();
+  await page.getByRole("button", { name: "Histórico" }).click();
+  await expect(page.getByRole("link", { name: fits }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: second }).first()).toBeVisible();
 
-  // Nova sugestão para o mesmo espaço: a primeira volta, mas perde o bônus de inédita
-  await page.locator("article", { hasText: "Recepção" }).getByRole("link", { name: "Encontrar nova obra" }).click();
-  await expect(item(fits).getByText(/Passou por este cliente 1 vez/)).toBeVisible();
+  // Nova sugestão para o mesmo ponto: a primeira volta, mas perde o bônus de inédita
+  await page.getByRole("button", { name: "Ambientes e pontos" }).click();
+  await spaceCard("Parede A").getByRole("button", { name: `Mais opções de Parede A` }).click();
+  await page.getByRole("menuitem", { name: "Substituir obra" }).click();
+  await expect(page.getByRole("dialog", { name: /Substituir obra/ }).getByText(/Passou por este cliente 1 vez/)).toBeVisible();
+  await page.keyboard.press("Escape");
 
-  // Retirar a segunda para manutenção
+  // Retirar a segunda para manutenção, na página do ponto
+  await page.goto(`/espacos/${spaceId}`);
   await page.getByText("Registrar retirada sem substituir").click();
   await page.getByLabel("A obra vai para").selectOption("em_manutencao");
   await page.getByRole("button", { name: "Registrar retirada" }).click();

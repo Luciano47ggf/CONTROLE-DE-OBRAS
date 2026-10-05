@@ -2,18 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { SpaceOccupantsCard } from "./space-occupants-card";
+import { EnvironmentCard } from "./environment-card";
 import { RecommendationCard } from "./recommendation-card";
 import { HistoryTimeline } from "./history-timeline";
 import { plural, swapText } from "@/lib/format";
-import type { ClientWorkspace } from "@/lib/queries";
-import type { ActiveInstallationRow } from "@/lib/types";
+import type { ClientWorkspace, SpaceReservation } from "@/lib/queries";
+import type { ActiveInstallationRow, SpaceRow } from "@/lib/types";
 
 const TABS = ["visao", "espacos", "sugestoes", "historico"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   visao: "Visão geral",
-  espacos: "Espaços e obras",
+  espacos: "Ambientes e pontos",
   sugestoes: "Sugestões",
   historico: "Histórico",
 };
@@ -29,7 +29,7 @@ export function ClientWorkspaceView({
   variant?: "drawer" | "page";
 }) {
   const [tab, setTab] = useState<Tab>("visao");
-  const { client, spaces, occupants, recommendations, events } = data;
+  const { client, environments, spaces, occupants, reservations, recommendations, events, defaultSwapDays } = data;
 
   const occupantsBySpace = new Map<string, ActiveInstallationRow[]>();
   for (const o of occupants) {
@@ -38,12 +38,39 @@ export function ClientWorkspaceView({
     occupantsBySpace.set(o.space_id, list);
   }
 
+  const reservationsBySpace = new Map<string, SpaceReservation>();
+  for (const r of reservations) reservationsBySpace.set(r.spaceId, r);
+
+  const spacesByEnvironment = new Map<string, SpaceRow[]>();
+  for (const s of spaces) {
+    const list = spacesByEnvironment.get(s.environment_id) ?? [];
+    list.push(s);
+    spacesByEnvironment.set(s.environment_id, list);
+  }
+
   const nextSwap = occupants
     .map((o) => o.days_remaining)
     .filter((d) => d !== null)
     .sort((a, b) => a - b)[0];
 
   const gridCols = variant === "drawer" ? "grid-cols-1" : "sm:grid-cols-2 xl:grid-cols-3";
+
+  const renderEnvironments = (list: typeof environments) => (
+    <div className="space-y-4">
+      {list.map((env) => (
+        <EnvironmentCard
+          key={env.id}
+          environment={env}
+          spaces={spacesByEnvironment.get(env.id) ?? []}
+          occupantsBySpace={occupantsBySpace}
+          reservationsBySpace={reservationsBySpace}
+          defaultSwapDays={defaultSwapDays}
+          clientId={client.id}
+          canWrite={canWrite}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div>
@@ -68,7 +95,7 @@ export function ClientWorkspaceView({
           <div className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line [&>*]:bg-paper">
             <div className="px-4 py-3">
               <p className="font-serif text-2xl font-medium tabular-nums">{spaces.length}</p>
-              <p className="text-xs text-muted">{plural(spaces.length, "espaço", "espaços")}</p>
+              <p className="text-xs text-muted">{plural(spaces.length, "ponto de exposição", "pontos de exposição")}</p>
             </div>
             <div className="px-4 py-3">
               <p className="font-serif text-2xl font-medium tabular-nums">{occupants.length}</p>
@@ -82,19 +109,15 @@ export function ClientWorkspaceView({
 
           <section>
             <div className="mb-3 flex items-baseline justify-between">
-              <h3 className="title-serif text-lg">Espaços e obras</h3>
-              {spaces.length > 3 && (
+              <h3 className="title-serif text-lg">Ambientes e pontos de exposição</h3>
+              {environments.length > 2 && (
                 <button type="button" className="link text-sm" onClick={() => setTab("espacos")}>Ver todos →</button>
               )}
             </div>
-            {spaces.length === 0 ? (
-              <p className="text-muted">Nenhum espaço cadastrado.</p>
+            {environments.length === 0 ? (
+              <p className="text-muted">Nenhum ambiente cadastrado.</p>
             ) : (
-              <div className={`grid gap-4 ${gridCols}`}>
-                {spaces.slice(0, 3).map((s) => (
-                  <SpaceOccupantsCard key={s.id} space={s} occupants={occupantsBySpace.get(s.id) ?? []} />
-                ))}
-              </div>
+              renderEnvironments(environments.slice(0, 2))
             )}
           </section>
 
@@ -121,18 +144,15 @@ export function ClientWorkspaceView({
       {tab === "espacos" && (
         <div>
           {canWrite && (
-            <div className="mb-4 text-right">
-              <Link href={`/clientes/${client.id}/espacos/novo`} className="btn-primary">Adicionar espaço</Link>
+            <div className="mb-4 flex flex-wrap justify-end gap-2">
+              <Link href={`/clientes/${client.id}/ambientes/novo`} className="btn-secondary">Adicionar ambiente</Link>
+              <Link href={`/clientes/${client.id}/espacos/novo`} className="btn-primary">Adicionar ponto de exposição</Link>
             </div>
           )}
-          {spaces.length === 0 ? (
-            <p className="text-muted">Nenhum espaço cadastrado.</p>
+          {environments.length === 0 ? (
+            <p className="text-muted">Nenhum ambiente cadastrado.</p>
           ) : (
-            <div className={`grid gap-4 ${gridCols}`}>
-              {spaces.map((s) => (
-                <SpaceOccupantsCard key={s.id} space={s} occupants={occupantsBySpace.get(s.id) ?? []} />
-              ))}
-            </div>
+            renderEnvironments(environments)
           )}
         </div>
       )}

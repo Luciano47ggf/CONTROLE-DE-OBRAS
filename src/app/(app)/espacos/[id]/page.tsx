@@ -9,16 +9,8 @@ import { BlockedBadge } from "@/components/clients/release-repeat";
 import { SpacePhotoUploader } from "@/components/photos/space-photo";
 import { InstallForm } from "@/components/movements/install-form";
 import { ReturnForm, PostponeForm } from "@/components/movements/return-form";
-import { date, dims, plural, swapText } from "@/lib/format";
+import { date, dims, historyReason, plural, swapText } from "@/lib/format";
 import type { ActiveInstallationRow, HistoryRow, Recommendation, SpaceRow } from "@/lib/types";
-
-function historyReason(r: Recommendation) {
-  if (r.times_at_client === 0) return "Inédita neste cliente";
-  const ago = r.last_at_client
-    ? Math.round((Date.now() - new Date(r.last_at_client).getTime()) / 86_400_000)
-    : 0;
-  return `Passou por este cliente ${plural(r.times_at_client, "vez", "vezes")}, a última há ${plural(ago, "dia", "dias")}`;
-}
 
 export default async function SpacePage({
   params,
@@ -60,7 +52,7 @@ export default async function SpacePage({
       <PageHeader
         title={space.name}
         back={{ href: `/clientes/${space.client_id}`, label: space.client_name }}
-        subtitle={`${dims(space.width_cm, space.height_cm)}, área útil ${dims(usableW, usableH)}${space.space_type_name ? `, ${space.space_type_name.toLowerCase()}` : ""}`}
+        subtitle={`${space.environment_name}, ${dims(space.width_cm, space.height_cm)}, área útil ${dims(usableW, usableH)}${space.space_type_name ? `, ${space.space_type_name.toLowerCase()}` : ""}`}
         actions={canWrite && <Link href={`/espacos/${id}/editar`} className="btn-secondary">Editar espaço</Link>}
       />
 

@@ -54,6 +54,13 @@ export function swapText(daysRemaining: number | null): string {
   return `Faltam ${plural(daysRemaining, "dia", "dias")}`;
 }
 
+/** Texto do histórico de uma recomendação no cliente ("Inédita..." ou "Passou N vezes...") */
+export function historyReason(r: { times_at_client: number; last_at_client: string | null }): string {
+  if (r.times_at_client === 0) return "Inédita neste cliente";
+  const ago = r.last_at_client ? Math.round((Date.now() - new Date(r.last_at_client).getTime()) / 86_400_000) : 0;
+  return `Passou por este cliente ${plural(r.times_at_client, "vez", "vezes")}, a última há ${plural(ago, "dia", "dias")}`;
+}
+
 export function photoUrl(path: string | null | undefined): string | null {
   if (!path) return null;
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/acervo/${path}`;

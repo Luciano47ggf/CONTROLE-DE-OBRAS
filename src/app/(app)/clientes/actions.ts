@@ -3,9 +3,12 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
+import { processOriginal } from "@/app/(app)/obras/photo-actions";
 import { dbError, formObject, optInt, optText, requiredText, zodErrors } from "@/lib/form";
 import type { ActionState } from "@/lib/types";
+
+const BUCKET = "acervo";
 
 const schema = z.object({
   name: requiredText("Nome"),
@@ -57,4 +60,46 @@ export async function saveClient(_prev: ActionState, fd: FormData): Promise<Acti
 
   revalidatePath("/clientes");
   redirect(`/clientes/${res.data.id}`);
+}
+
+/** Logo do cliente: uma só, enviada em clientes/{clientId}/{uuid}/original.{ext} */
+export async function setClientLogo(clientId: string, path: string): Promise<ActionState> {
+  const me = await getCurrentUser();
+  if (!me?.canWrite) return { error: "Seu usuário não pode alterar fotos." };
+  const supabase = await createClient();
+  const { data: client } = await supabase.from("clients").select("logo_path").eq("id", clientId).single();
+  if (!client) return { error: "Cliente não encontrado." };
+  const pattern = new RegExp(`^clientes/${clientId}/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
+  if (!pattern.test(path)) return { error: "Caminho de arquivo inesperado." };
+
+  try {
+    const v = await processOriginal(supabase, path);
+    const { error } = await supabase.from("clients").update({ logo_path: v.displayPath }).eq("id", clientId);
+    if (error) throw new Error(dbError(error).error);
+    await supabase.storage.from(BUCKET).remove([path, v.thumbPath]);
+    if (client.logo_path && client.logo_path !== v.displayPath) {
+      await supabase.storage.from(BUCKET).remove([client.logo_path]);
+    }
+  } catch (e) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    return { error: (e as Error).message };
+  }
+  revalidatePath(`/clientes/${clientId}`);
+  revalidatePath("/clientes");
+  return { ok: true };
+}
+
+/** Remove o logo do cliente, sem exigir um novo upload */
+export async function removeClientLogo(clientId: string): Promise<ActionState> {
+  const me = await getCurrentUser();
+  if (!me?.canWrite) return { error: "Seu usuário não pode alterar fotos." };
+  const supabase = await createClient();
+  const { data: client } = await supabase.from("clients").select("logo_path").eq("id", clientId).single();
+  if (!client?.logo_path) return { ok: true };
+  const { error } = await supabase.from("clients").update({ logo_path: null }).eq("id", clientId);
+  if (error) return dbError(error);
+  await supabase.storage.from(BUCKET).remove([client.logo_path]);
+  revalidatePath(`/clientes/${clientId}`);
+  revalidatePath("/clientes");
+  return { ok: true };
 }

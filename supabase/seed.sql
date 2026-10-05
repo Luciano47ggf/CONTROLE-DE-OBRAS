@@ -17,8 +17,11 @@ insert into clients (name, legal_name, document, city, state, contact_name, emai
   ('Empresa ABC', 'ABC Participações S.A.', '98765432000110', 'Cuiabá', 'MT', 'Rafael Costa', 'rafael@abc.com.br'),
   ('Hotel Central', null, null, 'Várzea Grande', 'MT', 'Paula Lima', null);
 
-insert into client_spaces (client_id, name, space_type_id, width_cm, height_cm)
-select c.id, v.name, t.id, v.w, v.h
+insert into client_environments (client_id, name)
+select id, 'Ambiente principal' from clients where name in ('Hotel Exemplo', 'Empresa ABC', 'Hotel Central');
+
+insert into client_spaces (client_id, environment_id, name, space_type_id, width_cm, height_cm)
+select c.id, e.id, v.name, t.id, v.w, v.h
   from (values
     ('Hotel Exemplo', 'Recepção',           'Recepção',        400, 250),
     ('Hotel Exemplo', 'Corredor principal', 'Corredor',        250, 180),
@@ -28,6 +31,7 @@ select c.id, v.name, t.id, v.w, v.h
     ('Hotel Central', 'Lobby',              'Recepção',        600, 300)
   ) as v(client, name, type, w, h)
   join clients c on c.name = v.client
+  join client_environments e on e.client_id = c.id and e.name = 'Ambiente principal'
   join space_types t on t.name = v.type;
 
 insert into artworks (code, title, artist_id, category_id, technique, year, width_cm, height_cm)

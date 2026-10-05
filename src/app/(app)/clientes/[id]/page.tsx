@@ -19,7 +19,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
       <PageHeader
         title={
           <span className="inline-flex items-center gap-3">
-            <ClientAvatar name={client.name} size={38} />
+            <ClientAvatar name={client.name} logoPath={client.logo_path} size={38} />
             {client.name}
             <span
               className={`rounded px-1.5 py-0.5 text-sm font-medium ${client.active ? "bg-ok-tint text-ok" : "bg-line text-muted"}`}

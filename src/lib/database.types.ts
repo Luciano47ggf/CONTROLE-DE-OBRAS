@@ -240,6 +240,7 @@ export type Database = {
           height_cm: number;
           id: string;
           notes: string | null;
+          reserved_planned_at: string | null;
           reserved_space_id: string | null;
           status: Database["public"]["Enums"]["artwork_status"];
           status_changed_at: string;
@@ -261,6 +262,7 @@ export type Database = {
           height_cm: number;
           id?: string;
           notes?: string | null;
+          reserved_planned_at?: string | null;
           reserved_space_id?: string | null;
           status?: Database["public"]["Enums"]["artwork_status"];
           status_changed_at?: string;
@@ -282,6 +284,7 @@ export type Database = {
           height_cm?: number;
           id?: string;
           notes?: string | null;
+          reserved_planned_at?: string | null;
           reserved_space_id?: string | null;
           status?: Database["public"]["Enums"]["artwork_status"];
           status_changed_at?: string;
@@ -342,12 +345,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      client_environments: {
+        Row: {
+          active: boolean;
+          client_id: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          name: string;
+          photo_path: string | null;
+          position: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          client_id: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          photo_path?: string | null;
+          position?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          client_id?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          photo_path?: string | null;
+          position?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "client_environments_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       client_spaces: {
         Row: {
           active: boolean;
           client_id: string;
           created_at: string;
           description: string | null;
+          environment_id: string;
           height_cm: number;
           id: string;
           name: string;
@@ -363,6 +411,7 @@ export type Database = {
           client_id: string;
           created_at?: string;
           description?: string | null;
+          environment_id: string;
           height_cm: number;
           id?: string;
           name: string;
@@ -378,6 +427,7 @@ export type Database = {
           client_id?: string;
           created_at?: string;
           description?: string | null;
+          environment_id?: string;
           height_cm?: number;
           id?: string;
           name?: string;
@@ -411,6 +461,13 @@ export type Database = {
             referencedColumns: ["client_id"];
           },
           {
+            foreignKeyName: "client_spaces_environment_id_fkey";
+            columns: ["environment_id"];
+            isOneToOne: false;
+            referencedRelation: "client_environments";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "client_spaces_space_type_id_fkey";
             columns: ["space_type_id"];
             isOneToOne: false;
@@ -431,6 +488,7 @@ export type Database = {
           email: string | null;
           id: string;
           legal_name: string | null;
+          logo_path: string | null;
           name: string;
           notes: string | null;
           phone: string | null;
@@ -449,6 +507,7 @@ export type Database = {
           email?: string | null;
           id?: string;
           legal_name?: string | null;
+          logo_path?: string | null;
           name: string;
           notes?: string | null;
           phone?: string | null;
@@ -467,6 +526,7 @@ export type Database = {
           email?: string | null;
           id?: string;
           legal_name?: string | null;
+          logo_path?: string | null;
           name?: string;
           notes?: string | null;
           phone?: string | null;
@@ -819,6 +879,7 @@ export type Database = {
           photo_thumb_path: string | null;
           reserved_client_id: string | null;
           reserved_client_name: string | null;
+          reserved_planned_at: string | null;
           reserved_space_id: string | null;
           reserved_space_name: string | null;
           status: Database["public"]["Enums"]["artwork_status"] | null;
@@ -1077,6 +1138,8 @@ export type Database = {
           compatible_available: number | null;
           created_at: string | null;
           description: string | null;
+          environment_id: string | null;
+          environment_name: string | null;
           height_cm: number | null;
           id: string | null;
           name: string | null;
@@ -1113,6 +1176,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "v_movements";
             referencedColumns: ["client_id"];
+          },
+          {
+            foreignKeyName: "client_spaces_environment_id_fkey";
+            columns: ["environment_id"];
+            isOneToOne: false;
+            referencedRelation: "client_environments";
+            referencedColumns: ["id"];
           },
           {
             foreignKeyName: "client_spaces_space_type_id_fkey";
@@ -1300,6 +1370,8 @@ export type Database = {
           blocked: boolean;
           category_name: string;
           code: string;
+          environment_id: string | null;
+          environment_name: string | null;
           height_cm: number;
           idle_days: number;
           last_at_client: string;
@@ -1328,7 +1400,7 @@ export type Database = {
         Returns: undefined;
       };
       reserve_artwork: {
-        Args: { p_artwork_id: string; p_notes?: string; p_space_id: string };
+        Args: { p_artwork_id: string; p_notes?: string; p_planned_at?: string; p_space_id: string };
         Returns: undefined;
       };
       return_artwork: {

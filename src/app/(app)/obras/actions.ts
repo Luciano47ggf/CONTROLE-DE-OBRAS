@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dbError, dimensionToCm, formObject, optDecimal, optInt, optText, requiredText, zodErrors } from "@/lib/form";
 import { registerArtworkPhotos } from "./photo-actions";
+import { getSettings } from "@/lib/queries";
+import { dims } from "@/lib/format";
 import type { ActionState, ArtworkStatus } from "@/lib/types";
 
 const schema = z.object({
@@ -41,6 +43,38 @@ export async function saveArtwork(_prev: ActionState, fd: FormData): Promise<Act
 
   let artworkId = id;
   if (id) {
+    const { data: current } = await supabase.from("artworks").select("width_cm, height_cm").eq("id", id).single();
+    if (current && (Number(current.width_cm) !== width || Number(current.height_cm) !== height)) {
+      const { data: activeInstall } = await supabase
+        .from("installations")
+        .select("space_id")
+        .eq("artwork_id", id)
+        .is("removed_at", null)
+        .maybeSingle();
+      if (activeInstall) {
+        const [{ data: space }, settings] = await Promise.all([
+          supabase.from("client_spaces").select("name, width_cm, height_cm").eq("id", activeInstall.space_id).single(),
+          getSettings(),
+        ]);
+        if (space) {
+          const { data: fits } = await supabase.rpc("fits_space", {
+            art_w: width!,
+            art_h: height!,
+            space_w: space.width_cm,
+            space_h: space.height_cm,
+            margin: settings.edge_margin_cm,
+          });
+          if (!fits) {
+            return {
+              error: "Revise os campos destacados.",
+              fieldErrors: {
+                width: `Com este tamanho, a obra não cabe mais no ponto onde está instalada (${space.name}, ${dims(space.width_cm, space.height_cm)}). Retire-a antes de alterar as dimensões.`,
+              },
+            };
+          }
+        }
+      }
+    }
     const { error } = await supabase.from("artworks").update(values).eq("id", id);
     if (error) return dbError(error);
   } else {

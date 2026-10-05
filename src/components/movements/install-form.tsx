@@ -23,7 +23,7 @@ export function InstallForm({
   return (
     <div className="space-y-3">
       <FormAlert error={state.error ?? rState.error} />
-      <form action={install} className="grid gap-3 sm:grid-cols-4">
+      <form action={install} className="grid gap-3 sm:grid-cols-5">
         <input type="hidden" name="artwork_id" value={artworkId} />
         <input type="hidden" name="space_id" value={spaceId} />
         {occupiedBy && <input type="hidden" name="replace" value="1" />}
@@ -43,7 +43,11 @@ export function InstallForm({
           <label className="label" htmlFor={`n-${artworkId}`}>Observação</label>
           <input id={`n-${artworkId}`} name="notes" className="input" />
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-4">
+        <div>
+          <label className="label" htmlFor={`p-${artworkId}`}>Data prevista (se só reservar)</label>
+          <input id={`p-${artworkId}`} type="date" name="planned_at" min={todayISO()} className="input" />
+        </div>
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-5">
           <SubmitButton pendingText="Instalando…">{occupiedBy ? "Substituir e instalar" : "Instalar agora"}</SubmitButton>
           <button formAction={reserve} className="btn-secondary">Só reservar</button>
           {occupiedBy && (

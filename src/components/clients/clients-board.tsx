@@ -12,6 +12,8 @@ export type ClientSummary = {
   name: string;
   segment: string | null;
   active: boolean;
+  logoPath: string | null;
+  environmentCount: number;
   spaceCount: number;
   occupantCount: number;
   nextSwapDays: number | null;
