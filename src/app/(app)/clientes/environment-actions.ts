@@ -15,22 +15,42 @@ const envSchema = z.object({
   name: requiredText("Nome"),
   description: optText,
   position: optInt(0, 10_000),
+  draft_id: z.uuid().optional(),
+  photo_path: optText,
 });
 
 export async function saveEnvironment(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const parsed = envSchema.safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
   const id = fd.get("id") as string | null;
+  const { draft_id, photo_path, ...fields } = parsed.data;
   const supabase = await createClient();
 
-  const values = { ...parsed.data, position: parsed.data.position ?? 0, active: fd.get("active") !== "off" };
+  const values = { ...fields, position: fields.position ?? 0, active: fd.get("active") !== "off" };
 
   if (id) {
     const { error } = await supabase.from("client_environments").update(values).eq("id", id);
     if (error) return dbError(error);
   } else {
-    const { error } = await supabase.from("client_environments").insert(values);
+    // Cadastro novo: se uma foto já foi enviada ao Storage (ambientes/{clientId}/{draft_id}/...),
+    // o ambiente nasce com esse mesmo id para que o caminho já enviado bata com o registro.
+    const { error } = await supabase
+      .from("client_environments")
+      .insert({ ...values, ...(draft_id ? { id: draft_id } : {}) });
     if (error) return dbError(error);
+
+    if (draft_id && photo_path) {
+      const pattern = new RegExp(`^ambientes/${fields.client_id}/${draft_id}/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
+      if (pattern.test(photo_path)) {
+        try {
+          const v = await processOriginal(supabase, photo_path);
+          await supabase.from("client_environments").update({ photo_path: v.displayPath }).eq("id", draft_id);
+          await supabase.storage.from(BUCKET).remove([photo_path, v.thumbPath]);
+        } catch {
+          await supabase.storage.from(BUCKET).remove([photo_path]);
+        }
+      }
+    }
   }
   revalidatePath(`/clientes/${parsed.data.client_id}`);
   redirect(`/clientes/${parsed.data.client_id}`);

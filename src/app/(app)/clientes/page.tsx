@@ -1,18 +1,35 @@
 import Link from "next/link";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, EmptyState } from "@/components/ui";
 import { ClientsBoard, type ClientSummary } from "@/components/clients/clients-board";
 
 export default async function ClientsPage() {
   const supabase = await createClient();
   const canWrite = !!(await getCurrentUser())?.canWrite;
 
-  const [{ data: clients }, { data: environments }, { data: spaces }, { data: occupants }] = await Promise.all([
+  const [
+    { data: clients, error: clientsError },
+    { data: environments, error: environmentsError },
+    { data: spaces, error: spacesError },
+    { data: occupants, error: occupantsError },
+  ] = await Promise.all([
     supabase.from("clients").select("id, name, segment, active, logo_path, cover_path").order("name").limit(500),
     supabase.from("client_environments").select("client_id").eq("active", true),
     supabase.from("client_spaces").select("client_id").eq("active", true),
     supabase.from("v_active_installations").select("client_id, days_remaining"),
   ]);
+
+  const queryError = clientsError ?? environmentsError ?? spacesError ?? occupantsError;
+  if (queryError) {
+    return (
+      <>
+        <PageHeader title="Visão geral" subtitle="Clientes, seus espaços e obras em circulação" />
+        <EmptyState title="Não foi possível carregar os clientes">
+          {queryError.message}. Confira se todas as migrations do banco (incluindo ambientes, logo e capa do cliente) foram aplicadas no Supabase.
+        </EmptyState>
+      </>
+    );
+  }
 
   const environmentCount = new Map<string, number>();
   for (const e of environments ?? []) environmentCount.set(e.client_id, (environmentCount.get(e.client_id) ?? 0) + 1);
