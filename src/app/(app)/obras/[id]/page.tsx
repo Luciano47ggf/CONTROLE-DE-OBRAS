@@ -117,7 +117,7 @@ export default async function ArtworkPage({ params }: { params: Promise<{ id: st
                   <div>
                     <p className="mb-3 text-sm font-medium">Registrar instalação</p>
                     <InstallForm artworkId={a.id} spaceId={reservedSpace.id}
-                      occupants={reservedSpaceOccupants.map((o) => ({ installationId: o.installation_id, title: o.artwork_title }))}
+                      occupiedBy={reservedSpaceOccupants[0]?.artwork_title ?? null}
                       defaultSwapDays={reservedSpace.swap_days ?? settings.default_swap_days} />
                   </div>
                   <ReservationActions artworkId={a.id} canDispatch={a.status === "reservada"} />

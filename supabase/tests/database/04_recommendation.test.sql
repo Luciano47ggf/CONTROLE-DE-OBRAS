@@ -1,6 +1,6 @@
 begin;
 \ir _fixtures.psql
-select plan(26);
+select plan(27);
 
 select tests.login('operador@teste.com');
 set local role authenticated;
@@ -77,6 +77,9 @@ select lives_ok($$ select release_artwork_repeat(
 select is((select blocked from r where code = 'T-4'), false, 'depois de liberada, a obra deixa de aparecer bloqueada');
 select is((select count(*)::int from artwork_repeat_releases where artwork_id = tests.art('T-4')), 1,
   'a liberação fica registrada para auditoria (quem, quando, motivo)');
+select throws_like($$ select release_artwork_repeat(
+    tests.art('T-4'), (select client_id from client_spaces where id = tests.space('T-Recepção')), 'de novo') $$,
+  '%liberação pendente%', 'não libera duas vezes a mesma obra para o mesmo cliente enquanto a primeira não for usada');
 
 -- ---------------------------------------------------------- recomendação por cliente
 create temp view rc as select * from recommend_artworks_for_client((select id from clients where name = 'T-Hotel'));

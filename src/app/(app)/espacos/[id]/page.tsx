@@ -52,7 +52,8 @@ export default async function SpacePage({
   const swapDays = space.swap_days ?? client?.default_swap_days ?? settings.default_swap_days;
   const usableW = Math.max(space.width_cm - 2 * settings.edge_margin_cm, 0);
   const usableH = Math.max(space.height_cm - 2 * settings.edge_margin_cm, 0);
-  const occupantOptions = occupants.map((o) => ({ installationId: o.installation_id, title: o.artwork_title }));
+  // O modelo continua 1 obra ativa por espaço por vez (ver migration 0007)
+  const occupiedBy = occupants[0]?.artwork_title ?? null;
 
   return (
     <>
@@ -189,7 +190,7 @@ export default async function SpacePage({
                 {canWrite && !r.blocked && <details className="border-t border-line">
                   <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-accent">Instalar esta obra</summary>
                   <div className="px-5 pb-5">
-                    <InstallForm artworkId={r.artwork_id} spaceId={id} occupants={occupantOptions} defaultSwapDays={swapDays} />
+                    <InstallForm artworkId={r.artwork_id} spaceId={id} occupiedBy={occupiedBy} defaultSwapDays={swapDays} />
                   </div>
                 </details>}
               </li>

@@ -1,18 +1,26 @@
 -- =====================================================================
 -- 0007 · Quadro de clientes
 --   * clients ganha "segment" (tipo/subtítulo exibido no card e no painel).
---   * Um espaço pode ter mais de uma obra instalada ao mesmo tempo (o limite
---     que existia era 1 instalação ativa por espaço; a obra continua única
---     por local — installations_active_artwork_uq não muda).
---   * v_spaces deixa de embutir colunas de UM ocupante (quebrava com várias
---     instalações simultâneas) e passa a expor agregados; a lista de
---     ocupantes de um espaço é lida de v_active_installations, que já é
---     "uma linha por instalação" e não precisou mudar.
+--   * v_spaces passa a expor também agregados de ocupação (occupant_count,
+--     próxima troca); a lista de ocupantes de um espaço é lida de
+--     v_active_installations, que já é "uma linha por instalação" e não
+--     precisou mudar. O modelo continua 1 obra ativa por espaço por vez
+--     (ver nota abaixo) — não mudei isso.
 --   * Regra de não repetição: recommend_artworks e a nova
 --     recommend_artworks_for_client marcam "blocked" quando a obra já
---     passou pelo cliente e ninguém liberou a repetição. A obra continua
---     aparecendo (não é escondida), só fica marcada — a liberação manual
---     fica auditada em artwork_repeat_releases.
+--     passou pelo cliente e não há liberação válida (ainda não usada). A
+--     obra continua aparecendo (não é escondida), só fica marcada.
+--   * A liberação de repetição vale para UMA próxima instalação: ao ser
+--     usada ela fica consumida (used_at/installation_id) e não autoriza
+--     mais nada depois. A regra é garantida dentro de install_artwork, não
+--     só nas funções de recomendação — não dá para contornar chamando a
+--     RPC direto.
+--   * Decisão registrada: por enquanto um espaço continua representando um
+--     único ponto de exposição (1 obra por vez). Se um ambiente tiver mais
+--     de uma parede/posição, cada uma vira um client_spaces separado (ex.:
+--     "Recepção - Parede A", "Recepção - Parede B"). Não há, portanto,
+--     lógica de "quanto da parede já está ocupado" — cada obra candidata
+--     ainda é avaliada contra a parede inteira.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -21,28 +29,27 @@
 alter table clients add column segment text;
 
 -- ---------------------------------------------------------------------
--- b. Várias obras por espaço
+-- b. install_artwork: mantém a regra de 1 obra ativa por espaço por vez
+--    (installations_active_space_uq não muda) e passa a também impor a
+--    regra de não repetição por cliente, consumindo a liberação usada.
 -- ---------------------------------------------------------------------
-drop index installations_active_space_uq;
-
-drop function install_artwork(uuid, uuid, date, integer, text, text, boolean);
-
-create function install_artwork(
-  p_artwork_id              uuid,
-  p_space_id                uuid,
-  p_installed_at            date    default current_date,
-  p_swap_days               integer default null,
-  p_responsible             text    default null,
-  p_notes                   text    default null,
-  p_replace_installation_id uuid    default null
+create or replace function install_artwork(
+  p_artwork_id      uuid,
+  p_space_id        uuid,
+  p_installed_at    date    default current_date,
+  p_swap_days       integer default null,
+  p_responsible     text    default null,
+  p_notes           text    default null,
+  p_replace_current boolean default false
 ) returns uuid
 language plpgsql security definer set search_path = public as $$
 declare
-  v        artworks;
-  v_space  client_spaces;
-  v_days   integer;
-  v_cur    installations;
-  v_id     uuid;
+  v            artworks;
+  v_space      client_spaces;
+  v_days       integer;
+  v_cur        installations;
+  v_id         uuid;
+  v_release_id uuid;
 begin
   perform _assert_can_write();
   v := _lock_artwork(p_artwork_id);
@@ -57,14 +64,29 @@ begin
 
   v_space := _check_space_fit(v, p_space_id);
 
-  -- Substituir uma obra específica deste espaço é opcional: sem isso, a nova
-  -- instalação simplesmente se soma às que já estão lá.
-  if p_replace_installation_id is not null then
-    select * into v_cur from installations
-     where id = p_replace_installation_id and space_id = p_space_id and removed_at is null
+  -- Regra de não repetição, garantida aqui (não só na recomendação): se a obra já
+  -- passou por qualquer espaço deste cliente, só instala de novo com uma liberação
+  -- válida e ainda não usada — e essa liberação é consumida por esta instalação,
+  -- logo abaixo, na mesma transação. Sem liberação, a instalação é recusada.
+  if exists (
+    select 1 from installations i
+      join client_spaces cs on cs.id = i.space_id
+     where i.artwork_id = p_artwork_id and cs.client_id = v_space.client_id
+  ) then
+    select id into v_release_id from artwork_repeat_releases
+     where artwork_id = p_artwork_id and client_id = v_space.client_id and used_at is null
+     order by released_at
+     limit 1
      for update;
-    if not found then
-      raise exception 'A obra a substituir não está mais instalada neste espaço.';
+    if v_release_id is null then
+      raise exception 'A obra "%" já passou por este cliente. Libere a repetição antes de instalar de novo.', v.title;
+    end if;
+  end if;
+
+  select * into v_cur from installations where space_id = p_space_id and removed_at is null for update;
+  if found then
+    if not p_replace_current then
+      raise exception 'O espaço "%" já tem uma obra instalada. Retire-a ou confirme a substituição.', v_space.name;
     end if;
     perform return_artwork(v_cur.id, p_installed_at, 'disponivel', 'Substituída por ' || v.code || ' · ' || v.title);
   end if;
@@ -83,15 +105,21 @@ begin
           nullif(trim(p_responsible), ''), nullif(trim(p_notes), ''), auth.uid())
   returning id into v_id;
 
+  -- Consome a liberação usada, se houver: ela não vale para uma repetição seguinte.
+  if v_release_id is not null then
+    update artwork_repeat_releases set used_at = now(), installation_id = v_id where id = v_release_id;
+  end if;
+
   perform _transition(p_artwork_id, 'instalada', p_space_id, v_id, null, p_notes);
   return v_id;
 end $$;
 
-revoke execute on function install_artwork(uuid, uuid, date, integer, text, text, uuid) from public, anon;
-grant  execute on function install_artwork(uuid, uuid, date, integer, text, text, uuid) to authenticated;
-
 -- ---------------------------------------------------------------------
--- c. v_spaces: agregados em vez de colunas de um único ocupante
+-- c. v_spaces: em vez de colunas do ocupante único, expõe agregados
+--    (occupant_count — 0 ou 1, já que o modelo continua 1 por espaço — e a
+--    próxima troca). Quem ocupa um espaço é lido de v_active_installations
+--    (uma linha por instalação, já existia e não precisou mudar); é essa
+--    view que alimenta a lista de ocupantes nos cards do quadro de clientes.
 -- ---------------------------------------------------------------------
 drop view v_spaces;
 
@@ -131,14 +159,21 @@ select s.*,
 --    que a consultam/gravam)
 -- ---------------------------------------------------------------------
 create table artwork_repeat_releases (
-  id          uuid primary key default gen_random_uuid(),
-  artwork_id  uuid not null references artworks(id) on delete cascade,
-  client_id   uuid not null references clients(id) on delete cascade,
-  reason      text,
-  released_by uuid references auth.users(id) on delete set null,
-  released_at timestamptz not null default now()
+  id              uuid primary key default gen_random_uuid(),
+  artwork_id      uuid not null references artworks(id) on delete cascade,
+  client_id       uuid not null references clients(id) on delete cascade,
+  reason          text,
+  released_by     uuid references auth.users(id) on delete set null,
+  released_at     timestamptz not null default now(),
+  -- Liberação vale para UMA próxima instalação: ao ser usada, used_at/installation_id
+  -- ficam gravados e a liberação para de contar como válida (install_artwork exige
+  -- used_at is null). O registro nunca é apagado nem reaberto — fica auditável.
+  used_at         timestamptz,
+  installation_id uuid references installations(id) on delete set null,
+  check (used_at is null or installation_id is not null)
 );
-create index artwork_repeat_releases_lookup_idx on artwork_repeat_releases (artwork_id, client_id, released_at desc);
+-- Busca rápida da liberação ainda não consumida de uma obra para um cliente
+create index artwork_repeat_releases_pending_idx on artwork_repeat_releases (artwork_id, client_id) where used_at is null;
 
 alter table artwork_repeat_releases enable row level security;
 create policy artwork_repeat_releases_read on artwork_repeat_releases for select to authenticated using (true);
@@ -160,6 +195,13 @@ begin
   end if;
   if not exists (select 1 from clients where id = p_client_id) then
     raise exception 'Cliente não encontrado.';
+  end if;
+  -- Só uma liberação pendente por vez: evita autorizar mais de uma repetição de uma vez
+  if exists (
+    select 1 from artwork_repeat_releases
+     where artwork_id = p_artwork_id and client_id = p_client_id and used_at is null
+  ) then
+    raise exception 'Já existe uma liberação pendente (ainda não usada) para esta obra neste cliente.';
   end if;
   insert into artwork_repeat_releases (artwork_id, client_id, reason, released_by)
   values (p_artwork_id, p_client_id, nullif(trim(p_reason), ''), auth.uid())
@@ -224,7 +266,7 @@ language sql stable security invoker set search_path = public as $$
            (coalesce(h.times, 0) > 0
              and not exists (
                select 1 from artwork_repeat_releases r
-                where r.artwork_id = a.id and r.client_id = sp.client_id
+                where r.artwork_id = a.id and r.client_id = sp.client_id and r.used_at is null
              )) as blocked,
            round(40 * sqrt((a.width_cm * a.height_cm) / (sp.uw * sp.uh)), 1) as s_size,
            round(case
@@ -316,7 +358,7 @@ language sql stable security invoker set search_path = public as $$
            (coalesce(h.times, 0) > 0
              and not exists (
                select 1 from artwork_repeat_releases r
-                where r.artwork_id = a.id and r.client_id = p_client_id
+                where r.artwork_id = a.id and r.client_id = p_client_id and r.used_at is null
              )) as blocked,
            sp.id as space_id, sp.name as space_name, sp.width_cm as space_width_cm, sp.height_cm as space_height_cm,
            round(40 * sqrt((a.width_cm * a.height_cm) / (sp.uw * sp.uh)), 1) as s_size,

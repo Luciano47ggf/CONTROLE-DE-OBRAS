@@ -481,25 +481,31 @@ export type Database = {
           artwork_id: string;
           client_id: string;
           id: string;
+          installation_id: string | null;
           reason: string | null;
           released_at: string;
           released_by: string | null;
+          used_at: string | null;
         };
         Insert: {
           artwork_id: string;
           client_id: string;
           id?: string;
+          installation_id?: string | null;
           reason?: string | null;
           released_at?: string;
           released_by?: string | null;
+          used_at?: string | null;
         };
         Update: {
           artwork_id?: string;
           client_id?: string;
           id?: string;
+          installation_id?: string | null;
           reason?: string | null;
           released_at?: string;
           released_by?: string | null;
+          used_at?: string | null;
         };
         Relationships: [
           {
@@ -514,6 +520,13 @@ export type Database = {
             columns: ["client_id"];
             isOneToOne: false;
             referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "artwork_repeat_releases_installation_id_fkey";
+            columns: ["installation_id"];
+            isOneToOne: false;
+            referencedRelation: "installations";
             referencedColumns: ["id"];
           },
         ];
@@ -1247,7 +1260,7 @@ export type Database = {
           p_artwork_id: string;
           p_installed_at?: string;
           p_notes?: string;
-          p_replace_installation_id?: string;
+          p_replace_current?: boolean;
           p_responsible?: string;
           p_space_id: string;
           p_swap_days?: number;
