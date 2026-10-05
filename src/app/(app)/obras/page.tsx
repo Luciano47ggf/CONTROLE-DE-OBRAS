@@ -128,7 +128,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="panel overflow-x-auto">
           <table className="table">
-            <thead><tr><th className="w-16"></th><th>Obra</th><th>Dimensões</th><th>Situação</th><th>Onde está</th><th className="text-right">Há</th></tr></thead>
+            <thead><tr><th className="w-16"></th><th>Obra</th><th>Dimensões</th><th>Situação</th><th>Onde está</th><th className="text-right">Há</th>{canWrite && <th></th>}</tr></thead>
             <tbody>
               {rows.map((a) => (
                 <tr key={a.id}>
@@ -149,6 +149,11 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                   <td className="whitespace-nowrap text-right tabular-nums text-muted" title={`${STATUS_LABEL[a.status as ArtworkStatus]} desde então`}>
                     {plural(a.days_in_status, "dia", "dias")}
                   </td>
+                  {canWrite && (
+                    <td className="whitespace-nowrap text-right">
+                      <Link href={`/obras/${a.id}/editar`} className="text-sm text-accent hover:underline">Editar</Link>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
