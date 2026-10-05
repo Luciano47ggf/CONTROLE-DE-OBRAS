@@ -62,11 +62,10 @@ export default async function SpacePage({
         </p>
       )}
 
-      {/* situação atual: um espaço pode ter mais de uma obra ao mesmo tempo */}
+      {/* situação atual: cada espaço tem no máximo uma obra instalada por vez (installations_active_space_uq) */}
       <section className="panel p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="title-serif text-xl">{occupants.length === 0 ? "Parede vazia" : "Obras neste espaço"}</h2>
-          {occupants.length > 0 && <span className="text-sm text-muted">{plural(occupants.length, "obra instalada", "obras instaladas")}</span>}
+          <h2 className="title-serif text-xl">{occupants.length === 0 ? "Parede vazia" : "Obra neste espaço"}</h2>
         </div>
 
         {occupants.length === 0 ? (

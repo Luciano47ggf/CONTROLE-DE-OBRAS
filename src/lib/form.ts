@@ -102,6 +102,21 @@ export const optDecimal = z
     return n;
   });
 
+/** Coordenada opcional (latitude/longitude): número com sinal, dentro do intervalo válido */
+export const optCoordinate = (min: number, max: number) =>
+  z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      if (v === undefined) return null;
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < min || n > max) {
+        ctx.addIssue({ code: "custom", message: "Coordenada inválida." });
+        return z.NEVER;
+      }
+      return n;
+    });
+
 export const requiredText = (label: string) =>
   z.string({ error: `${label} é obrigatório.` }).min(1, `${label} é obrigatório.`);
 

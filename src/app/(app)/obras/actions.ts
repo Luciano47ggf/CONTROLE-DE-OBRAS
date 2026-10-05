@@ -43,7 +43,11 @@ export async function saveArtwork(_prev: ActionState, fd: FormData): Promise<Act
 
   let artworkId = id;
   if (id) {
-    const { data: current } = await supabase.from("artworks").select("width_cm, height_cm").eq("id", id).single();
+    const { data: current } = await supabase
+      .from("artworks")
+      .select("width_cm, height_cm, reserved_space_id")
+      .eq("id", id)
+      .single();
     if (current && (Number(current.width_cm) !== width || Number(current.height_cm) !== height)) {
       const { data: activeInstall } = await supabase
         .from("installations")
@@ -51,9 +55,12 @@ export async function saveArtwork(_prev: ActionState, fd: FormData): Promise<Act
         .eq("artwork_id", id)
         .is("removed_at", null)
         .maybeSingle();
-      if (activeInstall) {
+      // Sem instalação ativa, mas com reserva pendente: o destino da reserva também precisa
+      // continuar comportando a obra, senão a reserva fica inválida sem ninguém notar até a instalação.
+      const targetSpaceId = activeInstall?.space_id ?? current.reserved_space_id;
+      if (targetSpaceId) {
         const [{ data: space }, settings] = await Promise.all([
-          supabase.from("client_spaces").select("name, width_cm, height_cm").eq("id", activeInstall.space_id).single(),
+          supabase.from("client_spaces").select("name, width_cm, height_cm").eq("id", targetSpaceId).single(),
           getSettings(),
         ]);
         if (space) {
@@ -65,10 +72,12 @@ export async function saveArtwork(_prev: ActionState, fd: FormData): Promise<Act
             margin: settings.edge_margin_cm,
           });
           if (!fits) {
+            const where = activeInstall ? "no ponto onde está instalada" : "no ponto reservado para ela";
+            const action = activeInstall ? "Retire-a" : "Cancele a reserva";
             return {
               error: "Revise os campos destacados.",
               fieldErrors: {
-                width: `Com este tamanho, a obra não cabe mais no ponto onde está instalada (${space.name}, ${dims(space.width_cm, space.height_cm)}). Retire-a antes de alterar as dimensões.`,
+                width: `Com este tamanho, a obra não cabe mais ${where} (${space.name}, ${dims(space.width_cm, space.height_cm)}). ${action} antes de alterar as dimensões.`,
               },
             };
           }

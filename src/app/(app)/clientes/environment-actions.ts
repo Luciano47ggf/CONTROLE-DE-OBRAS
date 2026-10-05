@@ -50,8 +50,9 @@ export async function setEnvironmentPhoto(environmentId: string, path: string): 
   const pattern = new RegExp(`^ambientes/${env.client_id}/${environmentId}/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
   if (!pattern.test(path)) return { error: "Caminho de arquivo inesperado." };
 
+  let v: Awaited<ReturnType<typeof processOriginal>> | undefined;
   try {
-    const v = await processOriginal(supabase, path);
+    v = await processOriginal(supabase, path);
     const { error } = await supabase.from("client_environments").update({ photo_path: v.displayPath }).eq("id", environmentId);
     if (error) throw new Error(dbError(error).error);
     // o original e a miniatura do ambiente não são usados: apaga para não ocupar espaço
@@ -60,7 +61,7 @@ export async function setEnvironmentPhoto(environmentId: string, path: string): 
       await supabase.storage.from(BUCKET).remove([env.photo_path]);
     }
   } catch (e) {
-    await supabase.storage.from(BUCKET).remove([path]);
+    await supabase.storage.from(BUCKET).remove([path, v?.displayPath, v?.thumbPath].filter((p): p is string => !!p));
     return { error: (e as Error).message };
   }
   revalidatePath(`/clientes/${env.client_id}`);

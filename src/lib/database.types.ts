@@ -488,8 +488,10 @@ export type Database = {
           document: string | null;
           email: string | null;
           id: string;
+          latitude: number | null;
           legal_name: string | null;
           logo_path: string | null;
+          longitude: number | null;
           name: string;
           notes: string | null;
           phone: string | null;
@@ -508,8 +510,10 @@ export type Database = {
           document?: string | null;
           email?: string | null;
           id?: string;
+          latitude?: number | null;
           legal_name?: string | null;
           logo_path?: string | null;
+          longitude?: number | null;
           name: string;
           notes?: string | null;
           phone?: string | null;
@@ -528,8 +532,10 @@ export type Database = {
           document?: string | null;
           email?: string | null;
           id?: string;
+          latitude?: number | null;
           legal_name?: string | null;
           logo_path?: string | null;
+          longitude?: number | null;
           name?: string;
           notes?: string | null;
           phone?: string | null;

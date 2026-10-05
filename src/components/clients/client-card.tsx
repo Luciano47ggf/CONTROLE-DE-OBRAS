@@ -2,13 +2,23 @@
 
 import { Square, Frame, CalendarClock, LayoutGrid } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
-import { Menu, MenuLink } from "@/components/menu";
+import { Menu, MenuButton, MenuLink } from "@/components/menu";
 import { Photo } from "@/components/ui";
 import { plural, swapText } from "@/lib/format";
 import type { ClientSummary } from "./clients-board";
 
 /** Card de cliente na visão geral: abre o painel lateral ao clicar */
-export function ClientCard({ client, canWrite, onOpen }: { client: ClientSummary; canWrite: boolean; onOpen: () => void }) {
+export function ClientCard({
+  client,
+  canWrite,
+  onOpen,
+  onAddArtwork,
+}: {
+  client: ClientSummary;
+  canWrite: boolean;
+  onOpen: () => void;
+  onAddArtwork: () => void;
+}) {
   return (
     <article
       role="button"
@@ -45,6 +55,7 @@ export function ClientCard({ client, canWrite, onOpen }: { client: ClientSummary
             items={
               <>
                 <MenuLink href={`/clientes/${client.id}`}>Abrir cliente</MenuLink>
+                <MenuButton onClick={(e) => { e.stopPropagation(); onAddArtwork(); }}>Adicionar obra</MenuButton>
                 <MenuLink href={`/clientes/${client.id}/editar`}>Editar cliente</MenuLink>
                 <MenuLink href={`/clientes/${client.id}/espacos/novo`}>Adicionar espaço</MenuLink>
               </>

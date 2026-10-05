@@ -72,19 +72,27 @@ export async function installArtwork(_prev: ActionState, fd: FormData): Promise<
   redirect(`/espacos/${d.space_id}?instalada=1`);
 }
 
+const reserveSchema = z.object({
+  artwork_id: z.uuid(),
+  space_id: z.uuid(),
+  notes: optText,
+  planned_at: z.string().optional(),
+});
+
 export async function reserveArtwork(_prev: ActionState, fd: FormData): Promise<ActionState> {
-  const artwork_id = String(fd.get("artwork_id"));
-  const space_id = String(fd.get("space_id"));
+  const parsed = reserveSchema.safeParse(formObject(fd));
+  if (!parsed.success) return zodErrors(parsed.error);
+  const d = parsed.data;
   const supabase = await createClient();
   const { error } = await supabase.rpc("reserve_artwork", {
-    p_artwork_id: artwork_id,
-    p_space_id: space_id,
-    p_notes: (fd.get("notes") as string) || undefined,
-    p_planned_at: (fd.get("planned_at") as string) || undefined,
+    p_artwork_id: d.artwork_id,
+    p_space_id: d.space_id,
+    p_notes: d.notes ?? undefined,
+    p_planned_at: d.planned_at ?? undefined,
   });
   if (error) return dbError(error);
   revalidatePath("/", "layout");
-  redirect(`/espacos/${space_id}?reservada=1`);
+  redirect(`/espacos/${d.space_id}?reservada=1`);
 }
 
 /** Candidatos para um ponto de exposição (recomendação + busca no front), chamável direto do drawer de instalação */

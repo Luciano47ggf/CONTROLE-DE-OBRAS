@@ -37,6 +37,19 @@ export function SpaceForm({
   const [h, setH] = useState(toM(space?.height_cm));
   const wc = parseM(w);
   const hc = parseM(h);
+  // Campos controlados: um <form action> do React 19 limpa inputs não controlados após
+  // qualquer submissão (mesmo com erro de validação), então o valor digitado precisa
+  // ficar em estado do componente em vez de depender de defaultValue.
+  const [values, setValues] = useState({
+    environment_id: space?.environment_id ?? defaultEnvironmentId ?? "",
+    name: space?.name ?? "",
+    space_type_id: space?.space_type_id ?? "",
+    swap_days: space?.swap_days?.toString() ?? "",
+    description: space?.description ?? "",
+    notes: space?.notes ?? "",
+    active: space?.active === false ? "off" : "on",
+  });
+  const set = (name: keyof typeof values, v: string) => setValues((cur) => ({ ...cur, [name]: v }));
 
   return (
     <form action={action} className="grid gap-8 lg:grid-cols-[1fr_280px]">
@@ -48,7 +61,8 @@ export function SpaceForm({
           <select
             id="environment_id"
             name="environment_id"
-            defaultValue={space?.environment_id ?? defaultEnvironmentId ?? ""}
+            value={values.environment_id}
+            onChange={(e) => set("environment_id", e.target.value)}
             className="input"
             required
             aria-invalid={!!fe.environment_id}
@@ -63,7 +77,15 @@ export function SpaceForm({
           )}
         </Field>
         <Field label="Nome do ponto de exposição" name="name" error={fe.name} hint="Ex.: Parede A, Nicho 1">
-          <input id="name" name="name" defaultValue={space?.name} className="input" required aria-invalid={!!fe.name} />
+          <input
+            id="name"
+            name="name"
+            value={values.name}
+            onChange={(e) => set("name", e.target.value)}
+            className="input"
+            required
+            aria-invalid={!!fe.name}
+          />
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Largura disponível (m)" name="width_m" error={fe.width_m}>
@@ -75,25 +97,52 @@ export function SpaceForm({
         </div>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Tipo de espaço" name="space_type_id" hint="Usado na adequação por categoria">
-            <select id="space_type_id" name="space_type_id" defaultValue={space?.space_type_id ?? ""} className="input">
+            <select
+              id="space_type_id"
+              name="space_type_id"
+              value={values.space_type_id}
+              onChange={(e) => set("space_type_id", e.target.value)}
+              className="input"
+            >
               <option value="">Sem tipo</option>
               {spaceTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </Field>
           <Field label="Prazo de troca (dias)" name="swap_days" error={fe.swap_days} hint="Vazio usa o prazo do cliente">
-            <input id="swap_days" name="swap_days" inputMode="numeric" defaultValue={space?.swap_days ?? ""} className="input" />
+            <input
+              id="swap_days"
+              name="swap_days"
+              inputMode="numeric"
+              value={values.swap_days}
+              onChange={(e) => set("swap_days", e.target.value)}
+              className="input"
+            />
           </Field>
         </div>
         <Field label="Descrição" name="description">
-          <textarea id="description" name="description" rows={2} defaultValue={space?.description ?? ""} className="input" />
+          <textarea
+            id="description"
+            name="description"
+            rows={2}
+            value={values.description}
+            onChange={(e) => set("description", e.target.value)}
+            className="input"
+          />
         </Field>
         <Field label="Observações" name="notes" hint="Iluminação, fixação, restrições de acesso">
-          <textarea id="notes" name="notes" rows={2} defaultValue={space?.notes ?? ""} className="input" />
+          <textarea
+            id="notes"
+            name="notes"
+            rows={2}
+            value={values.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            className="input"
+          />
         </Field>
         <div className="grid grid-cols-2 gap-4">
           {space && (
             <Field label="Situação" name="active">
-              <select id="active" name="active" defaultValue={space.active ? "on" : "off"} className="input">
+              <select id="active" name="active" value={values.active} onChange={(e) => set("active", e.target.value)} className="input">
                 <option value="on">Ativo</option>
                 <option value="off">Inativo</option>
               </select>

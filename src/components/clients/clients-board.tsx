@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { LayoutGrid, List as ListIcon } from "lucide-react";
 import { ClientCard } from "./client-card";
 import { ClientDrawer } from "./client-drawer";
+import { QuickInstallPicker } from "./quick-install-picker";
 import { EmptyState } from "@/components/ui";
 import { swapText } from "@/lib/format";
 
@@ -30,6 +31,7 @@ export function ClientsBoard({ clients, canWrite }: { clients: ClientSummary[]; 
   const [sort, setSort] = useState<SortKey>("name");
   const [view, setView] = useState<"grade" | "lista">("grade");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [addArtworkId, setAddArtworkId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let list = clients;
@@ -94,7 +96,13 @@ export function ClientsBoard({ clients, canWrite }: { clients: ClientSummary[]; 
       ) : view === "grade" ? (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((c) => (
-            <ClientCard key={c.id} client={c} canWrite={canWrite} onOpen={() => setOpenId(c.id)} />
+            <ClientCard
+              key={c.id}
+              client={c}
+              canWrite={canWrite}
+              onOpen={() => setOpenId(c.id)}
+              onAddArtwork={() => setAddArtworkId(c.id)}
+            />
           ))}
         </div>
       ) : (
@@ -126,6 +134,7 @@ export function ClientsBoard({ clients, canWrite }: { clients: ClientSummary[]; 
       )}
 
       <ClientDrawer clientId={openId} canWrite={canWrite} onClose={() => setOpenId(null)} />
+      {addArtworkId && <QuickInstallPicker clientId={addArtworkId} onClose={() => setAddArtworkId(null)} />}
     </div>
   );
 }

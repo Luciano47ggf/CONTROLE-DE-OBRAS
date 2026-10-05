@@ -30,13 +30,20 @@ export function InstallDrawer({
   onClose: () => void;
 }) {
   const [candidates, setCandidates] = useState<Recommendation[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [q, setQ] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    getSpaceCandidates(spaceId).then((data) => {
-      if (!cancelled) setCandidates(data);
-    });
+    setCandidates(null);
+    setLoadError(false);
+    getSpaceCandidates(spaceId)
+      .then((data) => {
+        if (!cancelled) setCandidates(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -89,7 +96,9 @@ export function InstallDrawer({
           />
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {candidates === null ? (
+          {loadError ? (
+            <p className="text-sm text-bad">Não foi possível carregar as obras recomendadas agora.</p>
+          ) : candidates === null ? (
             <p className="text-sm text-muted">Carregando…</p>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted">

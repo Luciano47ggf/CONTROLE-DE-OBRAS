@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { processOriginal } from "@/app/(app)/obras/photo-actions";
-import { dbError, formObject, optInt, optText, requiredText, zodErrors } from "@/lib/form";
+import { dbError, formObject, optCoordinate, optInt, optText, requiredText, zodErrors } from "@/lib/form";
 import type { ActionState } from "@/lib/types";
 
 const BUCKET = "acervo";
@@ -44,6 +44,8 @@ const schema = z.object({
   contact_name: optText,
   notes: optText,
   default_swap_days: optInt(1, 3650),
+  latitude: optCoordinate(-90, 90),
+  longitude: optCoordinate(-180, 180),
 });
 
 export async function saveClient(_prev: ActionState, fd: FormData): Promise<ActionState> {
@@ -72,8 +74,9 @@ export async function setClientLogo(clientId: string, path: string): Promise<Act
   const pattern = new RegExp(`^clientes/${clientId}/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
   if (!pattern.test(path)) return { error: "Caminho de arquivo inesperado." };
 
+  let v: Awaited<ReturnType<typeof processOriginal>> | undefined;
   try {
-    const v = await processOriginal(supabase, path);
+    v = await processOriginal(supabase, path);
     const { error } = await supabase.from("clients").update({ logo_path: v.displayPath }).eq("id", clientId);
     if (error) throw new Error(dbError(error).error);
     await supabase.storage.from(BUCKET).remove([path, v.thumbPath]);
@@ -81,7 +84,9 @@ export async function setClientLogo(clientId: string, path: string): Promise<Act
       await supabase.storage.from(BUCKET).remove([client.logo_path]);
     }
   } catch (e) {
-    await supabase.storage.from(BUCKET).remove([path]);
+    // Se processOriginal já tinha gravado exibição/miniatura, elas também precisam sair
+    // (senão ficam órfãs no Storage quando só a atualização no banco falha).
+    await supabase.storage.from(BUCKET).remove([path, v?.displayPath, v?.thumbPath].filter((p): p is string => !!p));
     return { error: (e as Error).message };
   }
   revalidatePath(`/clientes/${clientId}`);
@@ -117,8 +122,9 @@ export async function setClientCover(clientId: string, path: string): Promise<Ac
   const pattern = new RegExp(`^clientes/${clientId}/capa/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
   if (!pattern.test(path)) return { error: "Caminho de arquivo inesperado." };
 
+  let v: Awaited<ReturnType<typeof processOriginal>> | undefined;
   try {
-    const v = await processOriginal(supabase, path);
+    v = await processOriginal(supabase, path);
     const { error } = await supabase.from("clients").update({ cover_path: v.displayPath }).eq("id", clientId);
     if (error) throw new Error(dbError(error).error);
     await supabase.storage.from(BUCKET).remove([path, v.thumbPath]);
@@ -126,7 +132,7 @@ export async function setClientCover(clientId: string, path: string): Promise<Ac
       await supabase.storage.from(BUCKET).remove([client.cover_path]);
     }
   } catch (e) {
-    await supabase.storage.from(BUCKET).remove([path]);
+    await supabase.storage.from(BUCKET).remove([path, v?.displayPath, v?.thumbPath].filter((p): p is string => !!p));
     return { error: (e as Error).message };
   }
   revalidatePath(`/clientes/${clientId}`);
