@@ -5,6 +5,7 @@ import { saveClient } from "./actions";
 import { Field, Photo } from "@/components/ui";
 import { FormAlert, SubmitButton } from "@/components/submit-button";
 import { ClientLogoUploader } from "@/components/photos/client-logo";
+import { ClientCoverUploader } from "@/components/photos/client-cover";
 import type { Client } from "@/lib/types";
 
 export function ClientForm({ client }: { client?: Client }) {
@@ -56,10 +57,18 @@ export function ClientForm({ client }: { client?: Client }) {
       <SubmitButton>{client ? "Salvar alterações" : "Cadastrar cliente"}</SubmitButton>
 
       {client && (
-        <div className="border-t border-line pt-6">
-          <p className="label mb-2">Logo do cliente</p>
-          {client.logo_path && <Photo path={client.logo_path} alt={client.name} className="mb-3 h-24 w-24 rounded-full" />}
-          <ClientLogoUploader clientId={client.id} hasLogo={!!client.logo_path} />
+        <div className="grid gap-6 border-t border-line pt-6 sm:grid-cols-2">
+          <div>
+            <p className="label mb-2">Logo do cliente</p>
+            {client.logo_path && <Photo path={client.logo_path} alt={client.name} className="mb-3 h-24 w-24 rounded-full" />}
+            <ClientLogoUploader clientId={client.id} hasLogo={!!client.logo_path} />
+          </div>
+          <div>
+            <p className="label mb-2">Foto de capa</p>
+            <p className="mb-2 text-xs text-muted">Aparece no card do cliente na visão geral.</p>
+            {client.cover_path && <Photo path={client.cover_path} alt={client.name} className="mb-3 aspect-[16/10] w-full rounded-md" />}
+            <ClientCoverUploader clientId={client.id} hasCover={!!client.cover_path} />
+          </div>
         </div>
       )}
     </form>

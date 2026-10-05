@@ -6,6 +6,7 @@ import { X, Maximize2 } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
 import { ClientWorkspaceView } from "./client-workspace";
 import { Menu, MenuLink } from "@/components/menu";
+import { Photo } from "@/components/ui";
 import { getClientWorkspace } from "@/app/(app)/clientes/workspace-actions";
 import type { ClientWorkspace } from "@/lib/queries";
 
@@ -78,6 +79,11 @@ export function ClientDrawer({
         {error && <div className="p-6 text-sm text-bad">{error}</div>}
         {data && (
           <>
+            {data.client.cover_path && (
+              <div className="h-28 shrink-0 bg-wall">
+                <Photo path={data.client.cover_path} alt="" className="h-full w-full" />
+              </div>
+            )}
             <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
               <div className="flex min-w-0 items-center gap-3">
                 <ClientAvatar name={data.client.name} logoPath={data.client.logo_path} />

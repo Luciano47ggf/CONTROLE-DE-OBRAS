@@ -482,6 +482,7 @@ export type Database = {
           address: string | null;
           city: string | null;
           contact_name: string | null;
+          cover_path: string | null;
           created_at: string;
           default_swap_days: number | null;
           document: string | null;
@@ -501,6 +502,7 @@ export type Database = {
           address?: string | null;
           city?: string | null;
           contact_name?: string | null;
+          cover_path?: string | null;
           created_at?: string;
           default_swap_days?: number | null;
           document?: string | null;
@@ -520,6 +522,7 @@ export type Database = {
           address?: string | null;
           city?: string | null;
           contact_name?: string | null;
+          cover_path?: string | null;
           created_at?: string;
           default_swap_days?: number | null;
           document?: string | null;

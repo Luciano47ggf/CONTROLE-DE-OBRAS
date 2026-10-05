@@ -34,9 +34,12 @@ export function SpaceOccupantsCard({
   return (
     <div className="panel flex flex-col overflow-hidden">
       <div className="flex items-start justify-between gap-2 px-4 pt-4">
-        <div className="min-w-0">
-          <Link href={`/espacos/${space.id}`} className="truncate font-medium hover:underline">{space.name}</Link>
-          <p className="text-sm text-muted">{typeLabel} · {dims(space.width_cm, space.height_cm)}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          {space.photo_path && <Photo path={space.photo_path} alt="" className="h-12 w-12 shrink-0 rounded-sm" />}
+          <div className="min-w-0">
+            <Link href={`/espacos/${space.id}`} className="truncate font-medium hover:underline">{space.name}</Link>
+            <p className="text-sm text-muted">{typeLabel} · {dims(space.width_cm, space.height_cm)}</p>
+          </div>
         </div>
         <Menu
           label={`Mais opções de ${space.name}`}

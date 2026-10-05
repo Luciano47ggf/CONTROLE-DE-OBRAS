@@ -53,7 +53,7 @@ export function ClientCard({ client, canWrite, onOpen }: { client: ClientSummary
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-5 text-sm text-muted">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pb-5 text-sm text-muted">
         <span className="flex items-center gap-1.5">
           <LayoutGrid size={13} /> <span className="tabular-nums text-ink">{client.environmentCount}</span> {plural(client.environmentCount, "ambiente", "ambientes")}
         </span>
@@ -68,9 +68,11 @@ export function ClientCard({ client, canWrite, onOpen }: { client: ClientSummary
         </span>
       </div>
 
-      <div className="mt-4 aspect-[16/10] bg-wall">
-        <Photo path={client.previewPhoto} alt="" className="h-full w-full" />
-      </div>
+      {client.coverPath && (
+        <div className="mt-4 aspect-[16/10] bg-wall">
+          <Photo path={client.coverPath} alt="" className="h-full w-full" />
+        </div>
+      )}
     </article>
   );
 }

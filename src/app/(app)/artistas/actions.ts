@@ -11,7 +11,6 @@ const schema = z.object({
   name: requiredText("Nome"),
   nationality: optText,
   birth_year: optInt(1000, 2100),
-  website: optText,
   bio: optText,
   notes: optText,
 });

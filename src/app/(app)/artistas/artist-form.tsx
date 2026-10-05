@@ -31,9 +31,6 @@ export function ArtistForm({ artist }: { artist?: Artist }) {
           <input id="birth_year" name="birth_year" inputMode="numeric" defaultValue={artist?.birth_year ?? ""} className="input" aria-invalid={!!fe.birth_year} />
         </Field>
       </div>
-      <Field label="Site ou portfólio" name="website">
-        <input id="website" name="website" type="url" defaultValue={artist?.website ?? ""} className="input" />
-      </Field>
       <Field label="Biografia" name="bio">
         <textarea id="bio" name="bio" rows={3} defaultValue={artist?.bio ?? ""} className="input" />
       </Field>

@@ -8,13 +8,10 @@ export default async function ClientsPage() {
   const canWrite = !!(await getCurrentUser())?.canWrite;
 
   const [{ data: clients }, { data: environments }, { data: spaces }, { data: occupants }] = await Promise.all([
-    supabase.from("clients").select("id, name, segment, active, logo_path").order("name").limit(500),
+    supabase.from("clients").select("id, name, segment, active, logo_path, cover_path").order("name").limit(500),
     supabase.from("client_environments").select("client_id").eq("active", true),
     supabase.from("client_spaces").select("client_id").eq("active", true),
-    supabase
-      .from("v_active_installations")
-      .select("client_id, days_remaining, artwork_photo")
-      .order("installed_at", { ascending: false }),
+    supabase.from("v_active_installations").select("client_id, days_remaining"),
   ]);
 
   const environmentCount = new Map<string, number>();
@@ -23,30 +20,29 @@ export default async function ClientsPage() {
   const spaceCount = new Map<string, number>();
   for (const s of spaces ?? []) spaceCount.set(s.client_id, (spaceCount.get(s.client_id) ?? 0) + 1);
 
-  type OccSummary = { count: number; nextDays: number | null; photo: string | null };
+  type OccSummary = { count: number; nextDays: number | null };
   const occSummary = new Map<string, OccSummary>();
   for (const o of occupants ?? []) {
     if (!o.client_id) continue;
-    const cur = occSummary.get(o.client_id) ?? { count: 0, nextDays: null, photo: null };
+    const cur = occSummary.get(o.client_id) ?? { count: 0, nextDays: null };
     cur.count++;
     if (o.days_remaining !== null && (cur.nextDays === null || o.days_remaining < cur.nextDays)) cur.nextDays = o.days_remaining;
-    if (!cur.photo && o.artwork_photo) cur.photo = o.artwork_photo;
     occSummary.set(o.client_id, cur);
   }
 
   const summaries: ClientSummary[] = (clients ?? []).map((c) => {
-    const occ = occSummary.get(c.id) ?? { count: 0, nextDays: null, photo: null };
+    const occ = occSummary.get(c.id) ?? { count: 0, nextDays: null };
     return {
       id: c.id,
       name: c.name,
       segment: c.segment,
       active: c.active,
       logoPath: c.logo_path,
+      coverPath: c.cover_path,
       environmentCount: environmentCount.get(c.id) ?? 0,
       spaceCount: spaceCount.get(c.id) ?? 0,
       occupantCount: occ.count,
       nextSwapDays: occ.nextDays,
-      previewPhoto: occ.photo,
     };
   });
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { loadClientWorkspace } from "@/lib/queries";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Photo } from "@/components/ui";
 import { ClientAvatar } from "@/components/clients/client-avatar";
 import { ClientWorkspaceView } from "@/components/clients/client-workspace";
 
@@ -16,6 +16,11 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
   return (
     <>
+      {client.cover_path && (
+        <div className="mb-6 h-40 overflow-hidden rounded-md bg-wall sm:h-52">
+          <Photo path={client.cover_path} alt="" className="h-full w-full" />
+        </div>
+      )}
       <PageHeader
         title={
           <span className="inline-flex items-center gap-3">

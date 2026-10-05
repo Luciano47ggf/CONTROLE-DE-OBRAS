@@ -13,11 +13,11 @@ export type ClientSummary = {
   segment: string | null;
   active: boolean;
   logoPath: string | null;
+  coverPath: string | null;
   environmentCount: number;
   spaceCount: number;
   occupantCount: number;
   nextSwapDays: number | null;
-  previewPhoto: string | null;
 };
 
 type SortKey = "name" | "swap" | "spaces";

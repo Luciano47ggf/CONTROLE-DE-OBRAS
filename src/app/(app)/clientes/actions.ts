@@ -103,3 +103,48 @@ export async function removeClientLogo(clientId: string): Promise<ActionState> {
   revalidatePath("/clientes");
   return { ok: true };
 }
+
+/**
+ * Foto de capa do cliente: a imagem de prévia do card (separada do logo), enviada em
+ * clientes/{clientId}/capa/{uuid}/original.{ext}.
+ */
+export async function setClientCover(clientId: string, path: string): Promise<ActionState> {
+  const me = await getCurrentUser();
+  if (!me?.canWrite) return { error: "Seu usuário não pode alterar fotos." };
+  const supabase = await createClient();
+  const { data: client } = await supabase.from("clients").select("cover_path").eq("id", clientId).single();
+  if (!client) return { error: "Cliente não encontrado." };
+  const pattern = new RegExp(`^clientes/${clientId}/capa/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
+  if (!pattern.test(path)) return { error: "Caminho de arquivo inesperado." };
+
+  try {
+    const v = await processOriginal(supabase, path);
+    const { error } = await supabase.from("clients").update({ cover_path: v.displayPath }).eq("id", clientId);
+    if (error) throw new Error(dbError(error).error);
+    await supabase.storage.from(BUCKET).remove([path, v.thumbPath]);
+    if (client.cover_path && client.cover_path !== v.displayPath) {
+      await supabase.storage.from(BUCKET).remove([client.cover_path]);
+    }
+  } catch (e) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    return { error: (e as Error).message };
+  }
+  revalidatePath(`/clientes/${clientId}`);
+  revalidatePath("/clientes");
+  return { ok: true };
+}
+
+/** Remove a foto de capa do cliente, sem exigir um novo upload */
+export async function removeClientCover(clientId: string): Promise<ActionState> {
+  const me = await getCurrentUser();
+  if (!me?.canWrite) return { error: "Seu usuário não pode alterar fotos." };
+  const supabase = await createClient();
+  const { data: client } = await supabase.from("clients").select("cover_path").eq("id", clientId).single();
+  if (!client?.cover_path) return { ok: true };
+  const { error } = await supabase.from("clients").update({ cover_path: null }).eq("id", clientId);
+  if (error) return dbError(error);
+  await supabase.storage.from(BUCKET).remove([client.cover_path]);
+  revalidatePath(`/clientes/${clientId}`);
+  revalidatePath("/clientes");
+  return { ok: true };
+}
