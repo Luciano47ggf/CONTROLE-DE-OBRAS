@@ -46,22 +46,63 @@ const schema = z.object({
   default_swap_days: optInt(1, 3650),
   latitude: optCoordinate(-90, 90),
   longitude: optCoordinate(-180, 180),
+  draft_id: z.uuid().optional(),
+  logo_photo_path: optText,
+  cover_photo_path: optText,
 });
 
 export async function saveClient(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const parsed = schema.safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
   const id = fd.get("id") as string | null;
-  const values = { ...parsed.data, active: fd.get("active") !== "off" };
+  const { draft_id, logo_photo_path, cover_photo_path, ...rest } = parsed.data;
+  const values = { ...rest, active: fd.get("active") !== "off" };
 
   const supabase = await createClient();
-  const res = id
-    ? await supabase.from("clients").update(values).eq("id", id).select("id").single()
-    : await supabase.from("clients").insert(values).select("id").single();
+  if (id) {
+    const res = await supabase.from("clients").update(values).eq("id", id).select("id").single();
+    if (res.error) return dbError(res.error);
+    revalidatePath("/clientes");
+    redirect(`/clientes/${res.data.id}`);
+  }
+
+  // Cadastro novo: se logo e/ou capa já foram enviados ao Storage (clientes/{draft_id}/...),
+  // o cliente nasce com esse mesmo id para que os caminhos já enviados batam com o registro.
+  const res = await supabase
+    .from("clients")
+    .insert({ ...values, ...(draft_id ? { id: draft_id } : {}) })
+    .select("id")
+    .single();
   if (res.error) return dbError(res.error);
+  const clientId = res.data.id;
+
+  if (draft_id && logo_photo_path) {
+    const pattern = new RegExp(`^clientes/${draft_id}/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
+    if (pattern.test(logo_photo_path)) {
+      try {
+        const v = await processOriginal(supabase, logo_photo_path);
+        await supabase.from("clients").update({ logo_path: v.displayPath }).eq("id", clientId);
+        await supabase.storage.from(BUCKET).remove([logo_photo_path, v.thumbPath]);
+      } catch {
+        await supabase.storage.from(BUCKET).remove([logo_photo_path]);
+      }
+    }
+  }
+  if (draft_id && cover_photo_path) {
+    const pattern = new RegExp(`^clientes/${draft_id}/capa/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
+    if (pattern.test(cover_photo_path)) {
+      try {
+        const v = await processOriginal(supabase, cover_photo_path);
+        await supabase.from("clients").update({ cover_path: v.displayPath }).eq("id", clientId);
+        await supabase.storage.from(BUCKET).remove([cover_photo_path, v.thumbPath]);
+      } catch {
+        await supabase.storage.from(BUCKET).remove([cover_photo_path]);
+      }
+    }
+  }
 
   revalidatePath("/clientes");
-  redirect(`/clientes/${res.data.id}`);
+  redirect(`/clientes/${clientId}`);
 }
 
 /** Logo do cliente: uma só, enviada em clientes/{clientId}/{uuid}/original.{ext} */

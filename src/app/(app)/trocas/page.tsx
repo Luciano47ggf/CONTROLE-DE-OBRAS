@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, SwapIndicator, EmptyState } from "@/components/ui";
-import { date, plural, swapText } from "@/lib/format";
+import { date, plural, swapRowClass, swapText, swapUrgency } from "@/lib/format";
 import type { ActiveInstallationRow, SwapStatus } from "@/lib/types";
 
 const FILTERS: { value: SwapStatus | "todas"; label: string }[] = [
@@ -44,7 +44,7 @@ export default async function SwapsPage({ searchParams }: { searchParams: Promis
             <thead><tr><th>Cliente e espaço</th><th>Obra</th><th>Instalada em</th><th>Troca prevista</th><th>Prazo</th><th></th></tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.installation_id}>
+                <tr key={r.installation_id} className={swapRowClass(r.days_remaining)}>
                   <td>
                     <Link href={`/clientes/${r.client_id}`} className="font-medium hover:underline">{r.client_name}</Link>
                     <span className="block text-muted">{r.space_name}</span>
@@ -52,7 +52,7 @@ export default async function SwapsPage({ searchParams }: { searchParams: Promis
                   <td><Link href={`/obras/${r.artwork_id}`} className="font-serif text-base hover:underline">{r.artwork_title}</Link></td>
                   <td className="tabular-nums">{date(r.installed_at)}</td>
                   <td className="tabular-nums">{date(r.expected_swap_at)}</td>
-                  <td><SwapIndicator status={r.swap_status}>{swapText(r.days_remaining)}</SwapIndicator></td>
+                  <td><SwapIndicator status={swapUrgency(r.swap_status, r.days_remaining)}>{swapText(r.days_remaining)}</SwapIndicator></td>
                   <td className="text-right"><Link href={`/espacos/${r.space_id}`} className="btn-secondary">Encontrar nova obra</Link></td>
                 </tr>
               ))}

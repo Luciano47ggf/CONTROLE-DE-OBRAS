@@ -24,37 +24,55 @@ function stateToUf(name: string | undefined): string {
   return BR_STATES[name.trim().toLowerCase()] ?? name.slice(0, 2).toUpperCase();
 }
 
-type NominatimResult = {
-  display_name: string;
-  lat: string;
-  lon: string;
-  address?: {
-    road?: string;
-    house_number?: string;
+type PhotonFeature = {
+  properties: {
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    district?: string;
     city?: string;
-    town?: string;
-    village?: string;
-    municipality?: string;
     state?: string;
+    countrycode?: string;
   };
+  geometry: { coordinates: [number, number] }; // [lon, lat]
 };
 
-function toResult(r: NominatimResult): AddressResult {
-  const a = r.address ?? {};
-  const address = [a.road, a.house_number].filter(Boolean).join(", ") || r.display_name;
-  const city = a.city ?? a.town ?? a.village ?? a.municipality ?? "";
-  return { address, city, state: stateToUf(a.state), latitude: Number(r.lat), longitude: Number(r.lon) };
+/** Linha de endereço: nome do lugar (se houver) + rua e número */
+function addressLine(p: PhotonFeature["properties"]): string {
+  const street = [p.street, p.housenumber].filter(Boolean).join(", ");
+  if (p.name && p.name !== p.street) return [p.name, street].filter(Boolean).join(", ");
+  return street || p.name || p.district || p.city || "";
+}
+
+/** Texto do item na lista de resultados */
+function resultLabel(p: PhotonFeature["properties"]): string {
+  const line1 = p.name ?? [p.street, p.housenumber].filter(Boolean).join(", ");
+  const line2 = [p.district, p.city, p.state].filter(Boolean).join(", ");
+  return [line1, line2].filter(Boolean).join(" — ") || "Endereço sem nome";
+}
+
+function toResult(f: PhotonFeature): AddressResult {
+  const p = f.properties;
+  const [lon, lat] = f.geometry.coordinates;
+  return {
+    address: addressLine(p),
+    city: p.city ?? p.district ?? "",
+    state: stateToUf(p.state),
+    latitude: lat,
+    longitude: lon,
+  };
 }
 
 /**
- * Busca de endereço sem chave de API, usando o Nominatim (OpenStreetMap). Serviço público e
- * gratuito, mas com limite de uso (~1 req/s) — por isso a busca é disparada só depois que a
- * pessoa para de digitar, não a cada tecla. Para um volume alto de buscas, considere um
- * Nominatim próprio ou um serviço pago.
+ * Busca de endereço ou estabelecimento sem chave de API, usando o Photon (komoot), que
+ * indexa os mesmos dados do OpenStreetMap mas busca bem por nome de lugar (shopping,
+ * hotel, loja etc.), não só por rua/bairro. Serviço público e gratuito, com limite de uso
+ * — por isso a busca é disparada só depois que a pessoa para de digitar. Para um volume
+ * alto de buscas, considere uma instância própria do Photon/Nominatim ou um serviço pago.
  */
 export function AddressAutocomplete({ onSelect }: { onSelect: (r: AddressResult) => void }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [results, setResults] = useState<PhotonFeature[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -71,16 +89,14 @@ export function AddressAutocomplete({ onSelect }: { onSelect: (r: AddressResult)
     setError(undefined);
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetch(
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=br&accept-language=pt-BR&limit=6&q=${encodeURIComponent(q)}`,
-        { signal: controller.signal },
-      )
+      fetch(`https://photon.komoot.io/api/?limit=8&q=${encodeURIComponent(q)}`, { signal: controller.signal })
         .then((res) => {
           if (!res.ok) throw new Error("busca falhou");
-          return res.json() as Promise<NominatimResult[]>;
+          return res.json() as Promise<{ features: PhotonFeature[] }>;
         })
         .then((data) => {
-          setResults(data);
+          const br = (data.features ?? []).filter((f) => f.properties.countrycode === "BR");
+          setResults(br);
           setOpen(true);
         })
         .catch((e) => {
@@ -104,7 +120,7 @@ export function AddressAutocomplete({ onSelect }: { onSelect: (r: AddressResult)
 
   return (
     <div ref={boxRef} className="relative">
-      <label className="label" htmlFor="maps-search">Buscar endereço</label>
+      <label className="label" htmlFor="maps-search">Buscar endereço ou estabelecimento</label>
       <input
         id="maps-search"
         type="text"
@@ -112,7 +128,7 @@ export function AddressAutocomplete({ onSelect }: { onSelect: (r: AddressResult)
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}
-        placeholder="Digite rua, bairro ou cidade…"
+        placeholder="Digite o nome do local, rua, bairro ou cidade…"
         className="input"
       />
       <p className="mt-1 text-xs text-muted">
@@ -121,18 +137,18 @@ export function AddressAutocomplete({ onSelect }: { onSelect: (r: AddressResult)
       {error && <p className="mt-1 text-xs text-bad">{error}</p>}
       {open && results.length > 0 && (
         <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-line bg-paper shadow-lg">
-          {results.map((r, i) => (
+          {results.map((f, i) => (
             <li key={i}>
               <button
                 type="button"
                 className="block w-full px-3 py-2 text-left text-sm hover:bg-wall"
                 onClick={() => {
-                  onSelect(toResult(r));
-                  setQuery(r.display_name);
+                  onSelect(toResult(f));
+                  setQuery(resultLabel(f.properties));
                   setOpen(false);
                 }}
               >
-                {r.display_name}
+                {resultLabel(f.properties)}
               </button>
             </li>
           ))}

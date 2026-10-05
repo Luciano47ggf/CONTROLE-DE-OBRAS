@@ -54,6 +54,22 @@ export function swapText(daysRemaining: number | null): string {
   return `Faltam ${plural(daysRemaining, "dia", "dias")}`;
 }
 
+/**
+ * Semáforo exibido ao usuário: igual ao do banco (v_active_installations.swap_status),
+ * mas escala para "vermelho" quando falta 1 dia ou menos (0 ou negativo já vinha vermelho
+ * do banco; só o caso "amarelo a 1 dia" precisa de destaque extra aqui, sem mudar a regra
+ * de negócio nem os contadores do dashboard, que continuam lendo swap_status original).
+ */
+export function swapUrgency(status: SwapStatus, daysRemaining: number | null): SwapStatus {
+  if (daysRemaining !== null && daysRemaining <= 1) return "vermelho";
+  return status;
+}
+
+/** Destaque de linha/card quando a troca está vencida ou a 1 dia ou menos */
+export function swapRowClass(daysRemaining: number | null): string {
+  return daysRemaining !== null && daysRemaining <= 1 ? "bg-bad-tint" : "";
+}
+
 /** Texto do histórico de uma recomendação no cliente ("Inédita..." ou "Passou N vezes...") */
 export function historyReason(r: { times_at_client: number; last_at_client: string | null }): string {
   if (r.times_at_client === 0) return "Inédita neste cliente";

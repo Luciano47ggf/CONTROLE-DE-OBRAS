@@ -4,8 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { processOriginal } from "@/app/(app)/obras/photo-actions";
 import { dbError, formObject, metersToCm, optInt, optText, requiredText, todayOr, zodErrors } from "@/lib/form";
 import type { ActionState, Recommendation } from "@/lib/types";
+
+const BUCKET = "acervo";
 
 const spaceSchema = z.object({
   client_id: z.uuid(),
@@ -17,12 +20,14 @@ const spaceSchema = z.object({
   height_m: metersToCm(true),
   notes: optText,
   swap_days: optInt(1, 3650),
+  draft_id: z.uuid().optional(),
+  photo_path: optText,
 });
 
 export async function saveSpace(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const parsed = spaceSchema.safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
-  const { width_m, height_m, ...rest } = parsed.data;
+  const { width_m, height_m, draft_id, photo_path, ...rest } = parsed.data;
   const id = fd.get("id") as string | null;
   const supabase = await createClient();
 
@@ -32,8 +37,25 @@ export async function saveSpace(_prev: ActionState, fd: FormData): Promise<Actio
     const { error } = await supabase.from("client_spaces").update(values).eq("id", id);
     if (error) return dbError(error);
   } else {
-    const { error } = await supabase.from("client_spaces").insert(values);
+    // Cadastro novo: se uma foto já foi enviada ao Storage (espacos/{clientId}/{draft_id}/...),
+    // o ponto nasce com esse mesmo id para que o caminho já enviado bata com o registro.
+    const { error } = await supabase
+      .from("client_spaces")
+      .insert({ ...values, ...(draft_id ? { id: draft_id } : {}) });
     if (error) return dbError(error);
+
+    if (draft_id && photo_path) {
+      const pattern = new RegExp(`^espacos/${rest.client_id}/${draft_id}/[0-9a-f-]{36}/original\\.(jpg|png|webp)$`);
+      if (pattern.test(photo_path)) {
+        try {
+          const v = await processOriginal(supabase, photo_path);
+          await supabase.from("client_spaces").update({ photo_path: v.displayPath }).eq("id", draft_id);
+          await supabase.storage.from(BUCKET).remove([photo_path, v.thumbPath]);
+        } catch {
+          await supabase.storage.from(BUCKET).remove([photo_path]);
+        }
+      }
+    }
   }
   revalidatePath(`/clientes/${rest.client_id}`);
   redirect(`/clientes/${rest.client_id}`);

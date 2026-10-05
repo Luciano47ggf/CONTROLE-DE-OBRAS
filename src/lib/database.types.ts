@@ -42,6 +42,7 @@ export type Database = {
           name: string;
           nationality: string | null;
           notes: string | null;
+          photo_path: string | null;
           updated_at: string;
           website: string | null;
         };
@@ -53,6 +54,7 @@ export type Database = {
           name: string;
           nationality?: string | null;
           notes?: string | null;
+          photo_path?: string | null;
           updated_at?: string;
           website?: string | null;
         };
@@ -64,6 +66,7 @@ export type Database = {
           name?: string;
           nationality?: string | null;
           notes?: string | null;
+          photo_path?: string | null;
           updated_at?: string;
           website?: string | null;
         };

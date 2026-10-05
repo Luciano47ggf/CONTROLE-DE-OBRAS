@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader, EmptyState } from "@/components/ui";
+import { PageHeader, EmptyState, Photo } from "@/components/ui";
 import { ArtistForm } from "./artist-form";
 
 export default async function ArtistsPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("artists")
-    .select("id, name, nationality, birth_year, artworks(count)")
+    .select("id, name, nationality, birth_year, photo_path, artworks(count)")
     .order("name");
   const artists = (data ?? []) as unknown as {
-    id: string; name: string; nationality: string | null; birth_year: number | null; artworks: { count: number }[];
+    id: string; name: string; nationality: string | null; birth_year: number | null; photo_path: string | null;
+    artworks: { count: number }[];
   }[];
 
   return (
@@ -23,10 +24,11 @@ export default async function ArtistsPage() {
           ) : (
             <div className="panel overflow-x-auto">
               <table className="table">
-                <thead><tr><th>Nome</th><th>Nacionalidade</th><th className="text-right">Obras</th></tr></thead>
+                <thead><tr><th></th><th>Nome</th><th>Nacionalidade</th><th className="text-right">Obras</th></tr></thead>
                 <tbody>
                   {artists.map((a) => (
                     <tr key={a.id}>
+                      <td><Photo path={a.photo_path} alt={a.name} className="h-10 w-10 rounded-full" /></td>
                       <td>
                         <Link href={`/artistas/${a.id}`} className="font-medium hover:underline">{a.name}</Link>
                         {a.birth_year && <span className="text-muted"> ({a.birth_year})</span>}

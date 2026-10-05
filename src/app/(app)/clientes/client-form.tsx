@@ -1,13 +1,43 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { saveClient } from "./actions";
 import { Field, Photo } from "@/components/ui";
 import { FormAlert, SubmitButton } from "@/components/submit-button";
 import { ClientLogoUploader } from "@/components/photos/client-logo";
 import { ClientCoverUploader } from "@/components/photos/client-cover";
+import { PhotoUploader } from "@/components/photos/uploader";
 import { AddressAutocomplete, type AddressResult } from "@/components/address-autocomplete";
+import { getBrowserClient } from "@/lib/supabase/browser";
+import { photoUrl } from "@/lib/format";
 import type { Client } from "@/lib/types";
+
+/** Pendura a foto enviada ao Storage antes de o registro existir, com remover local */
+function PendingImage({
+  path,
+  onRemove,
+  rounded = "rounded-md",
+}: {
+  path: string;
+  onRemove: () => void;
+  rounded?: string;
+}) {
+  return (
+    <div className={`relative mb-3 h-24 w-24 overflow-hidden border border-line ${rounded}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={photoUrl(path)!} alt="" className="h-full w-full object-cover" />
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remover foto"
+        className="absolute right-1 top-1 rounded-full bg-ink/70 p-1 text-paper hover:bg-bad"
+      >
+        <Trash2 size={13} />
+      </button>
+    </div>
+  );
+}
 
 export function ClientForm({ client }: { client?: Client }) {
   const [state, action] = useActionState(saveClient, {});
@@ -15,6 +45,15 @@ export function ClientForm({ client }: { client?: Client }) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     client?.latitude != null && client?.longitude != null ? { lat: client.latitude, lng: client.longitude } : null,
   );
+  // Só usado no cadastro (sem `client` ainda): logo e capa são enviados direto ao Storage
+  // antes de o cliente existir, numa pasta com este id provisório, que vira o id real dele.
+  const [draftId] = useState(() => crypto.randomUUID());
+  const [pendingLogo, setPendingLogo] = useState<string | null>(null);
+  const [pendingCover, setPendingCover] = useState<string | null>(null);
+  async function removePending(path: string, clear: () => void) {
+    clear();
+    await getBrowserClient().storage.from("acervo").remove([path]);
+  }
   // Campos controlados: um <form action> do React 19 limpa inputs não controlados após
   // qualquer submissão (mesmo com erro de validação), então o valor digitado precisa
   // ficar em estado do componente em vez de depender de defaultValue.
@@ -57,7 +96,9 @@ export function ClientForm({ client }: { client?: Client }) {
 
   return (
     <form action={action} className="space-y-6">
-      {client && <input type="hidden" name="id" value={client.id} />}
+      {client ? <input type="hidden" name="id" value={client.id} /> : <input type="hidden" name="draft_id" value={draftId} />}
+      {pendingLogo && <input type="hidden" name="logo_photo_path" value={pendingLogo} />}
+      {pendingCover && <input type="hidden" name="cover_photo_path" value={pendingCover} />}
       <FormAlert error={state.error} />
 
       <fieldset className="grid gap-4 sm:grid-cols-2">
@@ -110,23 +151,66 @@ export function ClientForm({ client }: { client?: Client }) {
         </Field>
       </fieldset>
 
-      <SubmitButton>{client ? "Salvar alterações" : "Cadastrar cliente"}</SubmitButton>
-
-      {client && (
-        <div className="grid gap-6 border-t border-line pt-6 sm:grid-cols-2">
-          <div>
-            <p className="label mb-2">Logo do cliente</p>
-            {client.logo_path && <Photo path={client.logo_path} alt={client.name} className="mb-3 h-24 w-24 rounded-full" />}
-            <ClientLogoUploader clientId={client.id} hasLogo={!!client.logo_path} />
-          </div>
-          <div>
-            <p className="label mb-2">Foto de capa</p>
-            <p className="mb-2 text-xs text-muted">Aparece no card do cliente na visão geral.</p>
-            {client.cover_path && <Photo path={client.cover_path} alt={client.name} className="mb-3 aspect-[16/10] w-full rounded-md" />}
-            <ClientCoverUploader clientId={client.id} hasCover={!!client.cover_path} />
-          </div>
+      <div className="grid gap-6 border-t border-line pt-6 sm:grid-cols-2">
+        <div>
+          <p className="label mb-2">Logo do cliente</p>
+          {client ? (
+            <>
+              {client.logo_path && <Photo path={client.logo_path} alt={client.name} className="mb-3 h-24 w-24 rounded-full" />}
+              <ClientLogoUploader clientId={client.id} hasLogo={!!client.logo_path} />
+            </>
+          ) : pendingLogo ? (
+            <PendingImage path={pendingLogo} onRemove={() => removePending(pendingLogo, () => setPendingLogo(null))} rounded="rounded-full" />
+          ) : (
+            <PhotoUploader
+              folder={`clientes/${draftId}`}
+              multiple={false}
+              label="Enviar logo"
+              onUploaded={async (paths) => {
+                setPendingLogo(paths[0]!);
+                return { ok: true };
+              }}
+            />
+          )}
         </div>
-      )}
+        <div>
+          <p className="label mb-2">Foto de capa</p>
+          <p className="mb-2 text-xs text-muted">
+            Aparece no card do cliente na visão geral — pode ser a fachada, o ambiente ou qualquer outra imagem que identifique o cliente.
+          </p>
+          {client ? (
+            <>
+              {client.cover_path && <Photo path={client.cover_path} alt={client.name} className="mb-3 aspect-[16/10] w-full rounded-md" />}
+              <ClientCoverUploader clientId={client.id} hasCover={!!client.cover_path} />
+            </>
+          ) : pendingCover ? (
+            <div className="relative mb-3 aspect-[16/10] w-full overflow-hidden rounded-md border border-line">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoUrl(pendingCover)!} alt="" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removePending(pendingCover, () => setPendingCover(null))}
+                aria-label="Remover foto"
+                className="absolute right-2 top-2 rounded-full bg-ink/70 p-1.5 text-paper hover:bg-bad"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ) : (
+            <PhotoUploader
+              folder={`clientes/${draftId}/capa`}
+              multiple={false}
+              label="Enviar foto de capa"
+              onUploaded={async (paths) => {
+                setPendingCover(paths[0]!);
+                return { ok: true };
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      <SubmitButton>{client ? "Salvar alterações" : "Cadastrar cliente"}</SubmitButton>
     </form>
   );
 }

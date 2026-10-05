@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { PageHeader, Stat, SwapIndicator, EmptyState } from "@/components/ui";
-import { date, swapText, STATUS_LABEL } from "@/lib/format";
+import { date, swapRowClass, swapText, swapUrgency, STATUS_LABEL } from "@/lib/format";
 import type { ActiveInstallationRow, Dashboard, MovementRow } from "@/lib/types";
 
 export default async function DashboardPage() {
@@ -57,7 +57,7 @@ export default async function DashboardPage() {
                 </thead>
                 <tbody>
                   {upcoming.map((r) => (
-                    <tr key={r.installation_id}>
+                    <tr key={r.installation_id} className={swapRowClass(r.days_remaining)}>
                       <td>
                         <Link href={`/clientes/${r.client_id}`} className="font-medium hover:underline">{r.client_name}</Link>
                         <span className="block text-muted">{r.space_name}</span>
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
                         <Link href={`/obras/${r.artwork_id}`} className="font-serif text-base hover:underline">{r.artwork_title}</Link>
                       </td>
                       <td className="tabular-nums">{date(r.expected_swap_at)}</td>
-                      <td><SwapIndicator status={r.swap_status}>{swapText(r.days_remaining)}</SwapIndicator></td>
+                      <td><SwapIndicator status={swapUrgency(r.swap_status, r.days_remaining)}>{swapText(r.days_remaining)}</SwapIndicator></td>
                     </tr>
                   ))}
                 </tbody>
