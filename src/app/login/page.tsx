@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="relative hidden flex-col justify-between overflow-hidden bg-ink p-12 text-paper lg:flex">
         <Image src="/img_3577.webp" alt="" fill priority className="object-cover opacity-45" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/70 to-ink/30" />
-        <Image src="/SIC01.webp" alt="Sic Bartão" width={500} height={353} className="relative h-20 w-auto" priority />
+        <Image src="/SIC01.webp" alt="Sic Bartão" width={500} height={353} className="relative h-auto w-44 self-start" priority />
         <div className="relative max-w-md">
           <p className="font-serif text-3xl leading-snug">
             Cada parede, a obra certa. Cada obra, um novo lugar.
