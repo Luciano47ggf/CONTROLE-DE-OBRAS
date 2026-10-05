@@ -8,7 +8,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <section className="hidden flex-col justify-between bg-ink p-12 text-paper lg:flex">
-        <p className="font-serif text-2xl">Acervo</p>
+        <p className="font-serif text-2xl">Sic Bartão</p>
         <div className="max-w-md">
           {/* parede ilustrativa */}
           <div className="mb-10 aspect-[16/10] border border-paper/15 p-[6%]">

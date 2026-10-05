@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-wall: #eceee9;
-  --color-paper: #fbfbf8;
-  --color-ink: #1d2b2a;
-  --color-ink-soft: #2c3d3b;
-  --color-muted: #5d6a67;
-  --color-line: #d4d8d1;
-  --color-accent: #2f5d50;
-  --color-accent-hover: #244a40;
-  --color-accent-tint: #e2ebe6;
+  /* Identidade Sic Bartão: preto e branco, com o dourado da logo como único acento */
+  --color-wall: #f1f1ef;
+  --color-paper: #ffffff;
+  --color-ink: #121212;
+  --color-ink-soft: #2e2e2e;
+  --color-muted: #6b6b68;
+  --color-line: #dcdcd8;
+  --color-accent: #a57f2c;
+  --color-accent-hover: #8a6823;
+  --color-accent-tint: #f2ead7;
   --color-brass: #a57f2c;
   --color-ok: #2e7d4f;
   --color-ok-tint: #e3f1e7;
@@ -38,7 +39,7 @@ body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit
 
 @layer components {
   .panel { @apply rounded-md border border-line bg-paper; }
-  .btn-primary { @apply btn bg-accent text-white hover:bg-accent-hover; }
+  .btn-primary { @apply btn bg-ink text-paper hover:bg-ink-soft; }
   .btn-secondary { @apply btn border border-line bg-paper text-ink hover:border-muted; }
   .btn-ghost { @apply btn text-muted hover:bg-wall hover:text-ink; }
   .btn-danger { @apply btn border border-bad/40 bg-paper text-bad hover:bg-bad-tint; }

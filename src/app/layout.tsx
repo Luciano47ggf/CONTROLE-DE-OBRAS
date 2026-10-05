@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Acervo · Circulação de obras", template: "%s · Acervo" },
+  title: { default: "Sic Bartão · Circulação de obras", template: "%s · Sic Bartão" },
   description: "Gestão de acervo, instalações e rodízio de obras de arte em clientes.",
 };
 

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { getCatalogs } from "@/lib/queries";
-import { PageHeader, Photo, StatusBadge, EmptyState } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { ArtworkBoard } from "./artwork-board";
 import { ARTWORK_STATUSES, type ArtworkRow, type ArtworkStatus } from "@/lib/types";
-import { STATUS_LABEL, dims, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 
 const PAGE = 30;
 
@@ -114,52 +115,17 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         </div>
       </form>
 
-      <div className="mb-3 flex items-center justify-end gap-2 text-sm text-muted">
-        Ordenar:
-        {[["", "Parada há mais tempo"], ["recentes", "Cadastro recente"], ["titulo", "Nome"], ["maiores", "Maiores"]].map(([v, l]) => (
-          <Link key={v} href={qs({ ordem: v || undefined, p: undefined })} className={(sp.ordem ?? "") === v ? "font-medium text-ink" : "hover:text-ink"}>{l}</Link>
-        ))}
-      </div>
-
-      {rows.length === 0 ? (
-        <EmptyState title="Nenhuma obra com esses filtros" action={<Link href="/obras?status=todas" className="btn-secondary">Ver todo o acervo</Link>}>
-          Amplie as medidas, troque a situação ou limpe a busca.
-        </EmptyState>
-      ) : (
-        <div className="panel overflow-x-auto">
-          <table className="table">
-            <thead><tr><th className="w-16"></th><th>Obra</th><th>Dimensões</th><th>Situação</th><th>Onde está</th><th className="text-right">Há</th>{canWrite && <th></th>}</tr></thead>
-            <tbody>
-              {rows.map((a) => (
-                <tr key={a.id}>
-                  <td><Photo path={a.photo_thumb_path} alt={a.title} className="h-12 w-12 rounded-sm" /></td>
-                  <td className="min-w-48">
-                    <Link href={`/obras/${a.id}`} className="font-serif text-base hover:underline">{a.title}</Link>
-                    <span className="block text-xs text-muted">{a.code}, {a.artist_name}{a.category_name ? `, ${a.category_name.toLowerCase()}` : ""}</span>
-                  </td>
-                  <td className="whitespace-nowrap tabular-nums">{dims(a.width_cm, a.height_cm)}</td>
-                  <td><StatusBadge status={a.status as ArtworkStatus} /></td>
-                  <td className="text-muted">
-                    {a.current_client_name ? (
-                      <Link href={`/clientes/${a.current_client_id}`} className="hover:text-ink">{a.current_client_name}, {a.current_space_name}</Link>
-                    ) : a.reserved_client_name ? (
-                      <>Destino: {a.reserved_client_name}, {a.reserved_space_name}</>
-                    ) : "Estoque"}
-                  </td>
-                  <td className="whitespace-nowrap text-right tabular-nums text-muted" title={`${STATUS_LABEL[a.status as ArtworkStatus]} desde então`}>
-                    {plural(a.days_in_status, "dia", "dias")}
-                  </td>
-                  {canWrite && (
-                    <td className="whitespace-nowrap text-right">
-                      <Link href={`/obras/${a.id}/editar`} className="text-sm text-accent hover:underline">Editar</Link>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ArtworkBoard
+        rows={rows}
+        canWrite={canWrite}
+        emptyHref="/obras?status=todas"
+        sortLinks={[["", "Parada há mais tempo"], ["recentes", "Cadastro recente"], ["titulo", "Nome"], ["maiores", "Maiores"]].map(([v, l]) => ({
+          value: v!,
+          label: l!,
+          href: qs({ ordem: v || undefined, p: undefined }),
+          active: (sp.ordem ?? "") === v,
+        }))}
+      />
 
       {pages > 1 && (
         <nav className="mt-6 flex items-center justify-between text-sm" aria-label="Paginação">

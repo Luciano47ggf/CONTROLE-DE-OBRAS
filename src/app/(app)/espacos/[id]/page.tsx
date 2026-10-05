@@ -2,14 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/queries";
-import { PageHeader, Photo, SwapIndicator, EmptyState } from "@/components/ui";
+import { PageHeader, Photo, SwapIndicator } from "@/components/ui";
 import { WallPreview } from "@/components/wall-preview";
-import { ScoreBreakdown } from "@/components/score-breakdown";
-import { BlockedBadge } from "@/components/clients/release-repeat";
 import { SpacePhotoUploader } from "@/components/photos/space-photo";
-import { InstallForm } from "@/components/movements/install-form";
+import { SpaceRecommendations } from "@/components/clients/space-recommendations";
 import { ReturnForm, PostponeForm } from "@/components/movements/return-form";
-import { date, dims, historyReason, plural, swapText } from "@/lib/format";
+import { date, dims, plural, swapText } from "@/lib/format";
 import type { ActiveInstallationRow, HistoryRow, Recommendation, SpaceRow } from "@/lib/types";
 
 export default async function SpacePage({
@@ -17,18 +15,17 @@ export default async function SpacePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ instalada?: string; reservada?: string; mais?: string }>;
+  searchParams: Promise<{ instalada?: string; reservada?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   const supabase = await createClient();
-  const limit = sp.mais ? 60 : 12;
 
   const [{ data: spaceData }, { data: occupantsData }, { data: recs, error: recError }, { data: hist }, { data: reserved }, settings, me] =
     await Promise.all([
       supabase.from("v_spaces").select("*").eq("id", id).maybeSingle(),
       supabase.from("v_active_installations").select("*").eq("space_id", id).order("expected_swap_at"),
-      supabase.rpc("recommend_artworks", { p_space_id: id, p_limit: limit }),
+      supabase.rpc("recommend_artworks", { p_space_id: id, p_limit: 300 }),
       supabase.from("v_installation_history").select("*").eq("space_id", id).order("installed_at", { ascending: false }).limit(50),
       supabase.from("v_artworks").select("id, code, title, status").eq("reserved_space_id", id),
       getSettings(),
@@ -141,55 +138,19 @@ export default async function SpacePage({
         </p>
 
         {recError ? (
-          <EmptyState title="Não foi possível calcular as sugestões">{recError.message}</EmptyState>
-        ) : recommendations.length === 0 ? (
-          <EmptyState title="Nenhuma obra disponível cabe aqui">
-            Todas as obras compatíveis estão instaladas, reservadas ou em manutenção. Confira o <Link href="/obras" className="link">estoque</Link> ou revise as medidas do espaço.
-          </EmptyState>
+          <p className="text-sm text-bad">Não foi possível calcular as sugestões: {recError.message}</p>
         ) : (
-          <ol className="space-y-4">
-            {recommendations.map((r, i) => (
-              <li key={r.artwork_id} className="panel">
-                <div className="grid gap-5 p-5 md:grid-cols-[120px_minmax(0,1fr)_140px_110px] md:items-center">
-                  <Photo path={r.photo_thumb_path} alt={r.title} className="aspect-square w-full max-w-[120px] rounded-sm" />
-                  <div className="min-w-0">
-                    <Link href={`/obras/${r.artwork_id}`} className="title-serif text-xl hover:underline">{r.title}</Link>
-                    <p className="text-sm text-muted">
-                      {r.artist_name}, {r.code}{r.category_name ? `, ${r.category_name.toLowerCase()}` : ""}
-                    </p>
-                    <p className="mt-1 text-sm">{dims(r.width_cm, r.height_cm)}</p>
-                    {r.blocked && (
-                      <div className="mt-2">
-                        <BlockedBadge artworkId={r.artwork_id} clientId={space.client_id} />
-                      </div>
-                    )}
-                    <ul className="mt-2 space-y-0.5 text-sm text-muted">
-                      <li>{historyReason(r)}</li>
-                      <li>Parada no estoque há {plural(r.idle_days, "dia", "dias")}</li>
-                    </ul>
-                    <div className="mt-4 max-w-md"><ScoreBreakdown rec={r} /></div>
-                  </div>
-                  <div className="hidden h-24 items-center justify-center bg-wall p-2 md:flex">
-                    <WallPreview wallW={space.width_cm} wallH={space.height_cm} artW={r.width_cm} artH={r.height_cm}
-                      margin={settings.edge_margin_cm} className="h-full max-w-full" title={`${r.title} na parede`} />
-                  </div>
-                  <div className="md:text-right">
-                    <p className="font-serif text-4xl font-medium tabular-nums">{Math.round(r.score_total)}%</p>
-                    <p className="text-sm text-muted">{r.blocked ? "bloqueada" : i === 0 ? "melhor opção" : "compatível"}</p>
-                  </div>
-                </div>
-                {canWrite && !r.blocked && <details className="border-t border-line">
-                  <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-accent">Instalar esta obra</summary>
-                  <div className="px-5 pb-5">
-                    <InstallForm artworkId={r.artwork_id} spaceId={id} occupiedBy={occupiedBy} defaultSwapDays={swapDays} />
-                  </div>
-                </details>}
-              </li>
-            ))}
-          </ol>
-        )}
-        {!sp.mais && recommendations.length === limit && (
-          <Link href={`/espacos/${id}?mais=1`} className="btn-secondary mt-4">Ver mais sugestões</Link>
+          <SpaceRecommendations
+            recommendations={recommendations}
+            spaceId={id}
+            clientId={space.client_id}
+            canWrite={canWrite}
+            occupiedBy={occupiedBy}
+            defaultSwapDays={swapDays}
+            wallW={space.width_cm}
+            wallH={space.height_cm}
+            margin={settings.edge_margin_cm}
+          />
         )}
       </section>
 

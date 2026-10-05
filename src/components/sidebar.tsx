@@ -27,7 +27,7 @@ export function Sidebar({ userName, role, isAdmin, signOut }: { userName: string
     <>
       {/* barra superior no celular/tablet */}
       <div className="sticky top-0 z-30 flex items-center justify-between bg-ink px-4 py-3 text-paper lg:hidden">
-        <span className="font-serif text-lg">Acervo</span>
+        <span className="font-serif text-lg">Sic Bartão</span>
         <button onClick={() => setOpen((v) => !v)} aria-label={open ? "Fechar menu" : "Abrir menu"} className="p-1">
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -39,7 +39,7 @@ export function Sidebar({ userName, role, isAdmin, signOut }: { userName: string
         }`}
       >
         <div className="px-6 pb-6 pt-7">
-          <p className="font-serif text-2xl text-paper">Acervo</p>
+          <p className="font-serif text-2xl text-paper">Sic Bartão</p>
           <p className="text-sm text-paper/50">Circulação de obras</p>
         </div>
         <nav className="flex-1 space-y-0.5 px-3" aria-label="Principal">
