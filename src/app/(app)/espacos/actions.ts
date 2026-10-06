@@ -61,6 +61,17 @@ export async function saveSpace(_prev: ActionState, fd: FormData): Promise<Actio
   redirect(`/clientes/${rest.client_id}`);
 }
 
+export async function deleteSpace(id: string, clientId: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("client_spaces").delete().eq("id", id);
+  if (error) {
+    if (error.code === "23503") return { error: "Este ponto de exposição tem movimentações registradas e não pode ser removido." };
+    return dbError(error);
+  }
+  revalidatePath(`/clientes/${clientId}`);
+  redirect(`/clientes/${clientId}`);
+}
+
 // ---------------------------------------------------------------------
 // Movimentações: chamam as funções do banco, que validam tudo
 // ---------------------------------------------------------------------

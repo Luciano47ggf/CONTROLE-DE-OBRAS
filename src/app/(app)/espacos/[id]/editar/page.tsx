@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCatalogs, getSettings } from "@/lib/queries";
 import { PageHeader } from "@/components/ui";
 import { SpaceForm } from "../../space-form";
+import { DeleteButton } from "@/components/delete-button";
+import { deleteSpace } from "../../actions";
 import type { SpaceRow } from "@/lib/types";
 
 export default async function EditSpacePage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +36,10 @@ export default async function EditSpacePage({ params }: { params: Promise<{ id: 
           spaceTypes={catalogs.spaceTypes}
           margin={settings.edge_margin_cm}
         />
+      </div>
+      <div className="mt-6">
+        <DeleteButton action={deleteSpace.bind(null, id, space.client_id)} label="Remover ponto de exposição"
+          confirm="Remover este ponto de exposição? Só é possível se ele não tiver movimentações registradas." />
       </div>
     </>
   );

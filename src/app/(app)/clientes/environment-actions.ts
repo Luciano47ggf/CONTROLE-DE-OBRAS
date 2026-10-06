@@ -102,3 +102,14 @@ export async function removeEnvironmentPhoto(environmentId: string): Promise<Act
   revalidatePath(`/clientes/${env.client_id}`);
   return { ok: true };
 }
+
+export async function deleteEnvironment(id: string, clientId: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("client_environments").delete().eq("id", id);
+  if (error) {
+    if (error.code === "23503") return { error: "Este ambiente tem pontos de exposição cadastrados e não pode ser removido." };
+    return dbError(error);
+  }
+  revalidatePath(`/clientes/${clientId}`);
+  redirect(`/clientes/${clientId}`);
+}
